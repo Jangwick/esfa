@@ -1,0 +1,54 @@
+FROM composer:2 AS dependencies
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-interaction --no-progress --no-scripts --optimize-autoloader
+
+FROM dunglas/frankenphp:1-php8.4-alpine
+WORKDIR /app
+
+# PHP extensions required by Laravel, PostgreSQL and exact money arithmetic (bcmath).
+# cURL (CURLOPT_RESOLVE pins webhook DNS) is compiled into the base PHP image.
+RUN install-php-extensions \
+    pdo_pgsql \
+    pgsql \
+    bcmath \
+    ctype \
+    fileinfo \
+    json \
+    mbstring \
+    openssl \
+    pdo \
+    tokenizer \
+    xml \
+    zip
+
+# Attachments are uploaded through PHP: allow the 4 MB files the API accepts
+# (PHP's default is 2 MB; the platform itself refuses request bodies over 4.5 MB).
+RUN printf 'upload_max_filesize=5M\npost_max_size=6M\n' > "$PHP_INI_DIR/conf.d/uploads.ini"
+
+# start.sh forwards the public port to FrankenPHP with socat once PHP is ready
+RUN apk add --no-cache socat
+
+# .dockerignore leaves storage/ out of the image: public/index.php links it to /tmp/storage at runtime
+# because Vercel has no persistent disk.
+COPY --from=dependencies /app/vendor ./vendor
+COPY . .
+COPY Caddyfile /etc/caddy/Caddyfile
+
+# A checkout on Windows can give start.sh CRLF line endings, which sh cannot run
+RUN sed -i 's/\r$//' start.sh
+
+ENV PORT=80
+ENV APP_ENV=production
+ENV APP_DEBUG=false
+ENV CACHE_STORE=array
+ENV SESSION_DRIVER=array
+ENV LOG_CHANNEL=stderr
+ENV APP_CONFIG_CACHE=/tmp/config.php
+ENV APP_EVENTS_CACHE=/tmp/events.php
+ENV APP_PACKAGES_CACHE=/tmp/packages.php
+ENV APP_ROUTES_CACHE=/tmp/routes.php
+ENV APP_SERVICES_CACHE=/tmp/services.php
+ENV VIEW_COMPILED_PATH=/tmp/views
+
+CMD ["sh", "/app/start.sh"]

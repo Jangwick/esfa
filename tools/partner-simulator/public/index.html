@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Archon Market — partner storefront (simulated)</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#workspace">Skip to the current step</a>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">AM</span>
+      <div><strong>Archon Market</strong><span>partner storefront (simulated)</span></div>
+    </div>
+    <div class="topbar-actions">
+      <span id="connection" class="pill pill-muted" role="status">Checking connection…</span>
+      <a id="sfa-link" class="button button-ghost" href="http://127.0.0.1:5174" target="_blank" rel="noopener">Open SFA back office</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="column">
+      <nav class="steps" aria-label="Demo steps">
+        <button type="button" data-step="setup">1 Setup</button>
+        <button type="button" data-step="shop">2 Shop</button>
+        <button type="button" data-step="support">3 Customer support</button>
+        <button type="button" data-step="gateway">4 Payment gateway</button>
+        <button type="button" data-step="courier">5 Courier</button>
+      </nav>
+
+      <main id="workspace" tabindex="-1">
+        <!-- 1 Setup -->
+        <section id="panel-setup" class="panel" aria-labelledby="setup-title" hidden>
+          <h1 id="setup-title">1 · Setup</h1>
+          <p class="what"><strong>What this shows:</strong> SFA gives this outside company its own access token and signing secrets. The partner never touches SFA's database, only its public API.</p>
+          <div class="card">
+            <h2>Connection</h2>
+            <dl id="setup-status" class="facts"></dl>
+            <p><strong>Fastest way:</strong> in SFA sign in as Admin, open <em>Process Simulator</em> and press <em>Connect partner simulator</em>. SFA sends the token and secrets here directly, server to server.</p>
+          </div>
+          <form class="card" data-endpoint="/api/setup" data-done="setup" novalidate>
+            <h2>Or paste the values yourself</h2>
+            <p class="hint">Leave a field empty to keep its current value. Secrets stay in <code>storage/config.json</code> on this computer and are never shown again.</p>
+            <div class="fields">
+              <label class="field"><span>SFA API address</span><input name="sfa_api_url" placeholder="http://127.0.0.1:8000/api/v1" autocomplete="off"><small>Where the SFA API runs, ending in <code>/api/v1</code>.</small></label>
+              <label class="field"><span>Integration client code</span><input name="client_code" placeholder="demo-storefront" autocomplete="off"><small>SFA: Integrations → Clients (system code).</small></label>
+              <label class="field"><span>Access token</span><input name="token" type="password" autocomplete="off"><small>SFA: Integrations → Clients → Issue token (shown once).</small></label>
+              <label class="field"><span>Webhook signing secret</span><input name="webhook_secret" type="password" autocomplete="off"><small>SFA: Integrations → Webhooks → add <code>http://localhost:8787/webhooks</code> → Rotate secret.</small></label>
+              <label class="field"><span>Courier code</span><input name="courier_code" placeholder="demo-courier" autocomplete="off"><small>SFA: Logistics &amp; Locations → Couriers &amp; rates (code).</small></label>
+              <label class="field"><span>Courier signing secret</span><input name="courier_secret" type="password" autocomplete="off"><small>SFA: Logistics &amp; Locations → Couriers &amp; rates → Rotate signing secret.</small></label>
+              <label class="field"><span>Payment gateway secret</span><input name="gateway_secret" type="password" autocomplete="off"><small><code>SFA_SANDBOX_WEBHOOK_SECRET</code> in <code>backend/.env</code>.</small></label>
+            </div>
+            <button type="submit" class="button">Save connection</button>
+            <div class="result" role="status" aria-live="polite"></div>
+          </form>
+          <form class="card" data-endpoint="/api/reset" data-done="reset" data-confirm="Clear this simulator's customers, orders, tickets and traffic? Records already in SFA stay." novalidate>
+            <h2>Start over</h2>
+            <p class="hint">Clears this simulator's local records and traffic. The connection and everything already in SFA stay.</p>
+            <button type="submit" class="button button-danger">Clear simulator data</button>
+            <div class="result" role="status" aria-live="polite"></div>
+          </form>
+        </section>
+
+        <!-- 2 Shop -->
+        <section id="panel-shop" class="panel" aria-labelledby="shop-title" hidden>
+          <h1 id="shop-title">2 · Shop</h1>
+          <p class="what"><strong>What this shows:</strong> the storefront copies its customers, sellers and orders into SFA, then asks SFA to take the payment. Every call carries the token; payments also carry a one-time Idempotency-Key so a retry never charges twice.</p>
+          <div class="grid">
+            <form class="card" data-endpoint="/api/actions/customer" data-done="customer" novalidate>
+              <h2>New customer</h2>
+              <p class="hint"><code>PUT /integrations/customers/{id}</code></p>
+              <label class="field"><span>Name</span><input name="name" autocomplete="off"></label>
+              <label class="field"><span>Email</span><input name="email" type="email" autocomplete="off"></label>
+              <label class="field"><span>Phone</span><input name="phone" autocomplete="off"></label>
+              <button type="submit" class="button">Save customer to SFA</button>
+              <div class="result" role="status" aria-live="polite"></div>
+            </form>
+
+            <form class="card" data-endpoint="/api/actions/seller" data-done="seller" novalidate>
+              <h2>New seller</h2>
+              <p class="hint"><code>PUT /integrations/sellers/{id}</code></p>
+              <label class="field"><span>Shop name</span><input name="shop_name" autocomplete="off"></label>
+              <label class="field"><span>Owner name</span><input name="owner_name" autocomplete="off"></label>
+              <label class="field"><span>Email</span><input name="email" type="email" autocomplete="off"></label>
+              <button type="submit" class="button">Save seller to SFA</button>
+              <div class="result" role="status" aria-live="polite"></div>
+            </form>
+
+            <form id="order-form" class="card card-wide" data-endpoint="/api/actions/order" data-done="order" novalidate>
+              <h2>Place an order</h2>
+              <p class="hint"><code>PUT /integrations/orders/{id}</code> with every amount in integer centavos.</p>
+              <label class="field"><span>Customer</span><select name="customer_external_id" data-options="customers" data-placeholder="Add a customer first"></select></label>
+              <fieldset class="items">
+                <legend>Items</legend>
+                <div id="items"></div>
+                <button type="button" id="add-item" class="button button-ghost">Add another item</button>
+              </fieldset>
+              <div class="fields fields-2">
+                <label class="field"><span>Shipping (₱)</span><input name="shipping" inputmode="decimal" value="80.00" autocomplete="off"></label>
+                <label class="field"><span>Discount (₱)</span><input name="discount" inputmode="decimal" value="0.00" autocomplete="off"></label>
+              </div>
+              <p id="order-preview" class="preview" aria-live="polite"></p>
+              <button type="submit" class="button">Place order and send to SFA</button>
+              <div class="result" role="status" aria-live="polite"></div>
+            </form>
+
+            <form class="card" data-endpoint="/api/actions/pay" data-done="pay" novalidate>
+              <h2>Checkout (pay)</h2>
+              <p class="hint"><code>POST /integrations/payments</code> + Idempotency-Key</p>
+              <label class="field"><span>Order</span><select name="order_external_id" data-options="openOrders" data-placeholder="Place an order first"></select></label>
+              <label class="field"><span>Payment method</span>
+                <select name="method">
+                  <option value="gcash">GCash</option>
+                  <option value="card">Card</option>
+                  <option value="maya">Maya</option>
+                  <option value="bank_transfer">Bank transfer</option>
+                  <option value="cod">Cash on delivery</option>
+                </select>
+              </label>
+              <p class="hint">Sandbox rules: a total ending in <strong>.99</strong> is declined, <strong>.98</strong> stays pending until the gateway reports (tab 4), above <strong>₱50,000</strong> waits for a Finance risk review, anything else is approved and captured. Cash on delivery stays pending until the parcel is delivered.</p>
+              <button type="submit" class="button">Pay</button>
+              <div class="result" role="status" aria-live="polite"></div>
+            </form>
+
+            <form class="card" data-endpoint="/api/actions/cancel" data-done="cancel" novalidate>
+              <h2>Cancel an order</h2>
+              <p class="hint"><code>POST /integrations/orders/{id}/cancel</code>. SFA refuses once money was captured; that needs a refund instead.</p>
+              <label class="field"><span>Order</span><select name="order_external_id" data-options="openOrders" data-placeholder="Place an order first"></select></label>
+              <button type="submit" class="button button-danger">Cancel order</button>
+              <div class="result" role="status" aria-live="polite"></div>
+            </form>
+
+            <form class="card" data-endpoint="/api/actions/quote" data-done="quote" novalidate>
+              <h2>Shipping quote</h2>
+              <p class="hint"><code>POST /integrations/quotes</code> using PSGC city codes. Shipments themselves are booked in SFA by the Logistics Coordinator.</p>
+              <div class="fields fields-2">
+                <label class="field"><span>From city code</span><input name="origin_code" value="1380200000" inputmode="numeric" autocomplete="off"><small>Las Piñas</small></label>
+                <label class="field"><span>To city code</span><input name="destination_code" value="1380300000" inputmode="numeric" autocomplete="off"><small>Makati</small></label>
+                <label class="field"><span>Weight (grams)</span><input name="weight_grams" value="1200" inputmode="numeric" autocomplete="off"></label>
+                <label class="field"><span>Cash on delivery (₱)</span><input name="cod_amount" value="0.00" inputmode="decimal" autocomplete="off"></label>
+              </div>
+              <div class="fields fields-3">
+                <label class="field"><span>Length (cm)</span><input name="dimensions.length_cm" value="20" inputmode="decimal" autocomplete="off"></label>
+                <label class="field"><span>Width (cm)</span><input name="dimensions.width_cm" value="15" inputmode="decimal" autocomplete="off"></label>
+                <label class="field"><span>Height (cm)</span><input name="dimensions.height_cm" value="10" inputmode="decimal" autocomplete="off"></label>
+              </div>
+              <button type="submit" class="button">Get quotes</button>
+              <div class="result" role="status" aria-live="polite"></div>
+            </form>
+
+            <form class="card" data-endpoint="/api/actions/lookup" data-done="lookup" novalidate>
+              <h2>Check a status in SFA</h2>
+              <p class="hint"><code>GET /integrations/{payments|refunds|shipments}/{reference}</code></p>
+              <label class="field"><span>Record type</span>
+                <select name="kind">
+                  <option value="payment">Payment</option>
+                  <option value="refund">Refund</option>
+                  <option value="shipment">Shipment</option>
+                </select>
+              </label>
+              <label class="field"><span>Reference</span><input name="reference" list="known-references" autocomplete="off" placeholder="PAY-…, RFD-… or SHP-…"></label>
+              <datalist id="known-references" data-options="references"></datalist>
+              <button type="submit" class="button">Check in SFA</button>
+              <div class="result" role="status" aria-live="polite"></div>
+            </form>
+          </div>
+
+          <div class="grid">
+            <section class="card" aria-labelledby="orders-title"><h2 id="orders-title">Orders on this storefront</h2><ul id="orders-list" class="records"></ul></section>
+            <section class="card" aria-labelledby="payments-title"><h2 id="payments-title">Payments</h2><ul class="records" data-list="payments"></ul></section>
+          </div>
+        </section>
+
+        <!-- 3 Customer support -->
+        <section id="panel-support" class="panel" aria-labelledby="support-title" hidden>
+          <h1 id="support-title">3 · Customer support</h1>
+          <p class="what"><strong>What this shows:</strong> a customer asks for help on the storefront and the ticket lands in SFA's support queue. When an SFA agent replies or changes the status, SFA tells the storefront with a signed webhook.</p>
+          <div class="grid">
+            <form id="ticket-form" class="card" data-endpoint="/api/actions/ticket" data-done="ticket" novalidate>
+              <h2>Customer asks for help</h2>
+              <p class="hint"><code>POST /integrations/tickets</code> + Idempotency-Key</p>
+              <div class="fields fields-2">
+                <label class="field"><span>Who is asking</span>
+                  <select name="requester_type">
+                    <option value="customer">Customer</option>
+                    <option value="seller">Seller</option>
+                  </select>
+                </label>
+                <label class="field"><span>Name</span><select name="requester_external_id" data-options="requesters" data-placeholder="Add a customer or seller first"></select></label>
+              </div>
+              <label class="field"><span>Subject</span><input name="subject" value="Where is my order?" autocomplete="off"></label>
+              <label class="field"><span>Message</span><textarea name="description" rows="3">Hi, I paid for my order but have not received a shipping update yet. Can you check?</textarea></label>
+              <div class="fields fields-2">
+                <label class="field"><span>Category</span>
+                  <select name="category">
+                    <option value="delivery">Delivery</option>
+                    <option value="order">Order</option>
+                    <option value="payment">Payment</option>
+                    <option value="refund_return">Refund / return</option>
+                    <option value="account">Account</option>
+                    <option value="product_inquiry">Product question</option>
+                    <option value="seller_concern">Seller concern</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+                <label class="field"><span>Channel</span>
+                  <select name="channel">
+                    <option value="marketplace_app">Marketplace app</option>
+                    <option value="web_form">Web form</option>
+                    <option value="chat">Chat</option>
+                    <option value="email">Email</option>
+                    <option value="phone">Phone</option>
+                  </select>
+                </label>
+                <label class="field"><span>Related order (optional)</span><select name="order_external_id" data-options="orders" data-optional></select></label>
+                <label class="field"><span>Related payment (optional)</span><select name="payment_reference" data-options="payments" data-optional></select><small>Needs the related order too.</small></label>
+              </div>
+              <button type="submit" class="button">Send to SFA support</button>
+              <div class="result" role="status" aria-live="polite"></div>
+            </form>
+
+            <form class="card" data-endpoint="/api/actions/ticket_reply" data-done="ticket_reply" novalidate>
+              <h2>Customer replies</h2>
+              <p class="hint"><code>POST /integrations/tickets/{reference}/messages</code></p>
+              <label class="field"><span>Ticket</span><select name="reference" data-options="tickets" data-placeholder="Open a ticket first"></select></label>
+              <label class="field"><span>Reply</span><textarea name="body" rows="3">Thank you! The tracking number would help.</textarea></label>
+              <button type="submit" class="button">Send reply</button>
+              <div class="result" role="status" aria-live="polite"></div>
+            </form>
+
+            <form class="card" data-endpoint="/api/actions/ticket_refresh" data-done="ticket_refresh" novalidate>
+              <h2>Refresh a ticket</h2>
+              <p class="hint"><code>GET /integrations/tickets/{reference}</code> returns public messages only; internal agent notes never leave SFA.</p>
+              <label class="field"><span>Ticket</span><select name="reference" data-options="tickets" data-placeholder="Open a ticket first"></select></label>
+              <button type="submit" class="button button-ghost">Refresh from SFA</button>
+              <div class="result" role="status" aria-live="polite"></div>
+            </form>
+
+            <form class="card" data-endpoint="/api/actions/csat" data-done="csat" novalidate>
+              <h2>Customer rates the help</h2>
+              <p class="hint"><code>POST /integrations/tickets/{reference}/csat</code>. SFA accepts it only after the agent resolves the ticket.</p>
+              <label class="field"><span>Ticket</span><select name="reference" data-options="tickets" data-placeholder="Open a ticket first"></select></label>
+              <label class="field"><span>Score</span>
+                <select name="score">
+                  <option value="5">5 · Very satisfied</option>
+                  <option value="4">4 · Satisfied</option>
+                  <option value="3">3 · Neutral</option>
+                  <option value="2">2 · Unsatisfied</option>
+                  <option value="1">1 · Very unsatisfied</option>
+                </select>
+              </label>
+              <label class="field"><span>Comment (optional)</span><input name="comment" value="Quick and friendly help." autocomplete="off"></label>
+              <button type="submit" class="button">Submit rating</button>
+              <div class="result" role="status" aria-live="polite"></div>
+            </form>
+
+            <form class="card" data-endpoint="/api/actions/refund" data-done="refund" novalidate>
+              <h2>Customer requests a refund</h2>
+              <p class="hint"><code>POST /integrations/refunds</code> + Idempotency-Key. Finance approves or rejects it in SFA.</p>
+              <label class="field"><span>Captured payment</span><select name="payment_reference" data-options="capturedPayments" data-placeholder="Capture a payment first"></select></label>
+              <label class="field"><span>Amount (₱)</span><input name="amount" inputmode="decimal" value="100.00" autocomplete="off"></label>
+              <label class="field"><span>Reason</span>
+                <select name="reason">
+                  <option value="damaged">Item arrived damaged</option>
+                  <option value="item_not_received">Item not received</option>
+                  <option value="wrong_item">Wrong item</option>
+                  <option value="cancelled_order">Cancelled order</option>
+                  <option value="duplicate_charge">Duplicate charge</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
+              <label class="field"><span>Notes (optional)</span><input name="notes" value="Box was crushed on arrival." autocomplete="off"></label>
+              <button type="submit" class="button">Request refund</button>
+              <div class="result" role="status" aria-live="polite"></div>
+            </form>
+          </div>
+
+          <div class="grid">
+            <section class="card card-wide" aria-labelledby="tickets-title"><h2 id="tickets-title">Tickets</h2><ul id="tickets-list" class="records"></ul></section>
+            <section class="card" aria-labelledby="refunds-title"><h2 id="refunds-title">Refunds</h2><ul id="refunds-list" class="records"></ul></section>
+          </div>
+        </section>
+
+        <!-- 4 Payment gateway -->
+        <section id="panel-gateway" class="panel" aria-labelledby="gateway-title" hidden>
+          <h1 id="gateway-title">4 · Payment gateway</h1>
+          <p class="what"><strong>What this shows:</strong> the bank or e-wallet tells SFA what happened to a payment. It uses no token: SFA trusts the message only because it is signed with a shared secret and is less than five minutes old.</p>
+          <div class="grid">
+            <form class="card" data-endpoint="/api/gateway" data-done="gateway" novalidate>
+              <h2>Send a gateway event</h2>
+              <p class="hint"><code>POST /webhooks/payments/sandbox</code> signed with <code>X-SFA-Signature</code></p>
+              <label class="field"><span>Payment reference</span><input name="payment_reference" list="known-payments" autocomplete="off" placeholder="PAY-…"></label>
+              <datalist id="known-payments" data-options="paymentReferences"></datalist>
+              <label class="field"><span>What happened</span>
+                <select name="type">
+                  <option value="payment.captured">Captured (money collected)</option>
+                  <option value="payment.authorized">Authorized (approved, not yet collected)</option>
+                  <option value="payment.failed">Failed (declined)</option>
+                  <option value="payment.cancelled">Cancelled</option>
+                  <option value="payment.disputed">Disputed (customer filed a chargeback)</option>
+                  <option value="payment.dispute_won">Dispute won</option>
+                  <option value="payment.dispute_lost">Dispute lost</option>
+                </select>
+              </label>
+              <label class="field"><span>Amount (₱, optional)</span><input name="amount" inputmode="decimal" autocomplete="off"><small>Leave empty to use the full payment amount.</small></label>
+              <p class="hint">Tip: pay an order whose total ends in <strong>.98</strong> (tab 2); it stays pending until you send <em>Captured</em> here.</p>
+              <button type="submit" class="button">Send signed event to SFA</button>
+              <div class="result" role="status" aria-live="polite"></div>
+            </form>
+            <section class="card" aria-labelledby="gateway-payments-title"><h2 id="gateway-payments-title">Payments this partner knows</h2><ul class="records" data-list="payments"></ul></section>
+          </div>
+        </section>
+
+        <!-- 5 Courier -->
+        <section id="panel-courier" class="panel" aria-labelledby="courier-title" hidden>
+          <h1 id="courier-title">5 · Courier</h1>
+          <p class="what"><strong>What this shows:</strong> the delivery company pushes parcel updates to SFA with a signed webhook. SFA updates the shipment and forwards the news to the storefront.</p>
+          <div class="grid">
+            <form class="card" data-endpoint="/api/courier" data-done="courier" novalidate>
+              <h2>Send a delivery update</h2>
+              <p class="hint"><code>POST /webhooks/couriers/<span id="courier-code">{code}</span></code> signed with <code>X-SFA-Signature</code></p>
+              <label class="field"><span>Tracking number</span><input name="tracking_number" list="known-tracking" value="DEMO-TRK-0001" autocomplete="off"></label>
+              <datalist id="known-tracking" data-options="trackingNumbers"></datalist>
+              <label class="field"><span>New status</span>
+                <select name="status">
+                  <option value="ready_for_pickup">Ready for pickup</option>
+                  <option value="picked_up">Picked up</option>
+                  <option value="in_transit">In transit</option>
+                  <option value="out_for_delivery">Out for delivery</option>
+                  <option value="failed_attempt">Delivery attempt failed</option>
+                  <option value="returned_to_sender">Returned to sender</option>
+                  <option value="delivered">Delivered (proof must be recorded in SFA first)</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </label>
+              <label class="field"><span>Location (optional)</span><input name="location" value="Las Piñas sorting hub" autocomplete="off"></label>
+              <label class="field"><span>Note (optional)</span><input name="note" value="Parcel scanned by the courier." autocomplete="off"></label>
+              <p class="hint">SFA enforces the delivery order (pending → ready for pickup → picked up → in transit → out for delivery) and rejects skipped steps.</p>
+              <button type="submit" class="button">Send signed update to SFA</button>
+              <div class="result" role="status" aria-live="polite"></div>
+            </form>
+            <section class="card" aria-labelledby="shipments-title">
+              <h2 id="shipments-title">Shipments</h2>
+              <p class="hint">Booking a shipment through the API needs SFA's internal warehouse and address IDs, which the integration API does not expose, so the Logistics Coordinator books shipments in SFA (Logistics &amp; Locations → Shipments). This list fills from <em>shipment.created</em> webhooks and courier replies. Seeded tracking numbers <code>DEMO-TRK-0001</code>…<code>0015</code> work too.</p>
+              <ul id="shipments-list" class="records"></ul>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <aside class="traffic" aria-labelledby="traffic-title">
+      <h2 id="traffic-title">Live traffic</h2>
+      <p class="hint"><span class="dir dir-out">→ SFA</span> this partner called SFA &nbsp; <span class="dir dir-in">← SFA</span> SFA called this partner (webhook). Click a row for the full message.</p>
+      <ol id="timeline" class="timeline"></ol>
+    </aside>
+  </div>
+
+  <template id="item-row">
+    <div class="item-row">
+      <label class="field"><span>Product</span><input data-item="product_name" list="catalog" autocomplete="off"></label>
+      <label class="field"><span>Seller</span><select data-item="seller_external_id" data-options="sellers" data-placeholder="Add a seller first"></select></label>
+      <label class="field"><span>Qty</span><input data-item="quantity" inputmode="numeric" value="1" autocomplete="off"></label>
+      <label class="field"><span>Unit price (₱)</span><input data-item="unit_price" inputmode="decimal" autocomplete="off"></label>
+      <button type="button" class="button button-ghost remove-item">Remove</button>
+    </div>
+  </template>
+  <datalist id="catalog"></datalist>
+</body>
+</html>

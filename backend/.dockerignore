@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+vendor
+node_modules
+storage
+.git
+.idea
+.vscode
+database/*.sqlite*
+.phpunit.result.cache

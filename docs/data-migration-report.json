@@ -1,0 +1,230 @@
+{
+    "mode": "Imported and verified",
+    "rows": 1586,
+    "tables": {
+        "addresses": {
+            "rows": 17,
+            "sha256": "441acc794aca2b20808fa877d03870126a63dada52185b6ff299b03cf482a6ec"
+        },
+        "attachments": {
+            "rows": 5,
+            "sha256": "f3e2718d075a2eaf2f4a5f91a285dee6b6a627d0bdeb219d3faade0834d5d254"
+        },
+        "audit_logs": {
+            "rows": 48,
+            "sha256": "68b4af0638a614eb2e11edf5a34dfc84c92ee7b7c1455ab3961814b0a38a7f25"
+        },
+        "barangays": {
+            "rows": 2,
+            "sha256": "cd85609300a1f915971db295f5dfe44c0fbd82910385fa14ee3e69cca9c194d0"
+        },
+        "cache": {
+            "rows": 139,
+            "sha256": "81473aed74ef3b46dad4cd260d311e4cf3a785f10db4b9adecfb6ec3f6678e31"
+        },
+        "cache_locks": {
+            "rows": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "canned_responses": {
+            "rows": 3,
+            "sha256": "005639b766e3cc2137f78b4afbfaf0a0e321a4fceeb78e1a13ca4833d1dfa594"
+        },
+        "categories": {
+            "rows": 3,
+            "sha256": "2999d403c1402facc97a8738e550d3164ea85e782f78163ab6f77072f8113af3"
+        },
+        "cities": {
+            "rows": 2,
+            "sha256": "7303cec9231083ce4f8251cb5a67397ff9dc38fa37861ed08dfae4e46be0a37f"
+        },
+        "commission_entries": {
+            "rows": 44,
+            "sha256": "b59583c2ac7a114feefb0803f1c39d216eed24feeac68e2db2bea1a5e82e4e3f"
+        },
+        "commission_rules": {
+            "rows": 4,
+            "sha256": "98e0b5d1515c72dd1fbec7b615f09b66c889ab638a85e0a39b156345aca223df"
+        },
+        "courier_webhook_events": {
+            "rows": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "couriers": {
+            "rows": 1,
+            "sha256": "a42d6415f03ac6c9cd37f9e38cb6fd7f0e0b0eb16bb5c7f4ad57aeec762726d7"
+        },
+        "customers": {
+            "rows": 14,
+            "sha256": "1f82cbceeb47757da52b175874be55f366305d176eba599c9675f697152909d3"
+        },
+        "gateway_events": {
+            "rows": 31,
+            "sha256": "e1c293e692dc37faffea5c7770014ad6cc6d9508678bf89b99560b0387f77eb0"
+        },
+        "idempotency_records": {
+            "rows": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "integration_clients": {
+            "rows": 6,
+            "sha256": "94bbf38235195e3129fb85e940994bfcac329a1c51b644ed5731dd1ab7125ded"
+        },
+        "invoices": {
+            "rows": 2,
+            "sha256": "c931c17527abc28f0fc192153396b5129787ff3fcf854722371b6ec8367bdb11"
+        },
+        "kb_articles": {
+            "rows": 3,
+            "sha256": "bb3dff2fb9b12006b98c753064b6da4026ce19666351a23b14280ce1ca4fb624"
+        },
+        "kb_categories": {
+            "rows": 2,
+            "sha256": "fc548731ac0a402ba2ededba4bd956086478ddb0e234123f5f8c8098aa286765"
+        },
+        "ledger_entries": {
+            "rows": 328,
+            "sha256": "21fc908fc628d8373b18133bfaf6e41881128b12fc4d1ec890ea5b7b2c2fb49a"
+        },
+        "login_challenges": {
+            "rows": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "login_lockouts": {
+            "rows": 1,
+            "sha256": "40a01d489e35c661036be8084b19c40c2fc025e755fa5a1f648365a9b1ee771e"
+        },
+        "model_has_permissions": {
+            "rows": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "model_has_roles": {
+            "rows": 6,
+            "sha256": "b06c984b6dae88265fcf97d4b85843440ef4d436a6a36513e31aabcf292e4e16"
+        },
+        "notifications": {
+            "rows": 131,
+            "sha256": "57e859421b53653b8d27a02f462ab2044c7c6a21ec74e32e376a95318ce50699"
+        },
+        "order_items": {
+            "rows": 65,
+            "sha256": "b245f2a710af5f7f2694f545ae228a736ee9971b36a30a395ad062cfe777e39f"
+        },
+        "orders": {
+            "rows": 64,
+            "sha256": "8c9579bc8f118e4e2eb9769b144024621245638fd290c4f429f3f37a0240efbd"
+        },
+        "payments": {
+            "rows": 67,
+            "sha256": "9acbf48f6367c8046b81bbbc9cdc6bed86ea497a2c5489bc4839c143491fcfec"
+        },
+        "payouts": {
+            "rows": 3,
+            "sha256": "b07e500499b9a073cf8e52b6133dbc16455520893075b4554b1a2f75750a9235"
+        },
+        "permissions": {
+            "rows": 122,
+            "sha256": "b406a51eb9bbbf007fd4b25b40a6433d69438f4b434b469ea0f84efc28e62d92"
+        },
+        "personal_access_tokens": {
+            "rows": 14,
+            "sha256": "cdee76eccd289837e9b94780c9ffac92a3c0cbb9faf364d2bef3ef82bc270f17"
+        },
+        "plans": {
+            "rows": 3,
+            "sha256": "63c66f54dc89d1780c6317284f873c58ae2f88638723da8c3cdbe7c4d49f540d"
+        },
+        "provinces": {
+            "rows": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "reconciliation_items": {
+            "rows": 4,
+            "sha256": "a3c8c4d86d8ea21ba578dc3c64d6e0c886c9820f0f843d7b0ee52968294145cc"
+        },
+        "reconciliations": {
+            "rows": 1,
+            "sha256": "18467b8e34e42492d9218f7c4903aa3da7fcb694863d90077f6fd3326cdaf7d7"
+        },
+        "refunds": {
+            "rows": 14,
+            "sha256": "7f38d3e10e5ea151e99b8e26abd55b90fc127a8fdeff88f0c7bf6125f1fef2ab"
+        },
+        "regions": {
+            "rows": 1,
+            "sha256": "80ea3838fc95bb061234c179a93ea7038b25c8a6637cff83e5d89d2a7eec3b08"
+        },
+        "role_has_permissions": {
+            "rows": 235,
+            "sha256": "174c68c9b3e6a0d3a573f1d76d69bb65d61edaa694bdcdd311e6f0a07628497c"
+        },
+        "roles": {
+            "rows": 5,
+            "sha256": "454a920d5201c2bfc7f2f133d9d8449c68513c30d961c7b4206fc021eb41f92f"
+        },
+        "scheduler_locks": {
+            "rows": 1,
+            "sha256": "5152f405f2af3593a129c884d89f45bb13d432fb83adb7ba09c585f2881b4095"
+        },
+        "sellers": {
+            "rows": 7,
+            "sha256": "9e57727555c0ee1a018752d34d042f88294f5b39586e1d044fc3490ad38c9dfa"
+        },
+        "settings": {
+            "rows": 10,
+            "sha256": "23d8dd7b724ef0a43b94d3e49efb01acc9d9c52ff815b1b749c4948eb79d37a2"
+        },
+        "settlements": {
+            "rows": 12,
+            "sha256": "0f84767365726b433d5c9b6700930b1e6011d422b01839e5c31a15a96d3da4de"
+        },
+        "shipment_events": {
+            "rows": 81,
+            "sha256": "fa1b8c3fb1939e3617fd781593df95438d24c5f29bae782c358bdb1b04f24916"
+        },
+        "shipments": {
+            "rows": 15,
+            "sha256": "5061485535014298091b3ae99e989649bace47a5eefec065af99333186ec9f7b"
+        },
+        "shipping_rates": {
+            "rows": 2,
+            "sha256": "6d48f71810e8075592cd2925db280c18ea164431642dee7e3ab6fdfe5743735e"
+        },
+        "sla_policies": {
+            "rows": 4,
+            "sha256": "dd0af911cc4f53af2a657c47dfe79b43c31a10be363a8e101177bc0b245e587f"
+        },
+        "subscriptions": {
+            "rows": 5,
+            "sha256": "9ed94a5500ccfcc387462b61f756c3218bb7b0531f523257e68293d9ad61aac0"
+        },
+        "ticket_messages": {
+            "rows": 21,
+            "sha256": "351a095148d6b0b393e8c754b4f8d7665d0ddf6d236f84882a99b3f4cdfc4c42"
+        },
+        "tickets": {
+            "rows": 19,
+            "sha256": "add992c2c038efd33f3fca56532672911198751b0bbac91cc821743b076f4078"
+        },
+        "users": {
+            "rows": 6,
+            "sha256": "3bf7af0a439440758a50ad8b0a771328868afd9caedaa340b27817d804f793d4"
+        },
+        "warehouses": {
+            "rows": 2,
+            "sha256": "79b118ff0670bafa382b88c23a9cc4106b1d4d32c8b0101e770e2c852d7ad5fc"
+        },
+        "webhook_deliveries": {
+            "rows": 9,
+            "sha256": "37426ae5414f428389fe8bcd72803ba8736cac30335c7175e21775129113c74d"
+        },
+        "webhook_endpoints": {
+            "rows": 1,
+            "sha256": "6366fdd92177cd7e2e5a7c53d64f7d5166b3cb11c16c146cc7c2ca315d28c4c6"
+        },
+        "zones": {
+            "rows": 1,
+            "sha256": "f11fea59d8cf5c72a0e38588de260d4b5866d854ca3463c1f00aff5459e51d3c"
+        }
+    }
+}

@@ -1,0 +1,24 @@
+<?php
+use App\Http\Controllers\LedgerController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\ReconciliationController;
+use App\Http\Controllers\RefundController;
+use App\Http\Controllers\RiskReviewController;
+use Illuminate\Support\Facades\Route;
+Route::get('/payment-options',[PaymentController::class,'options']);
+Route::get('/payments',[PaymentController::class,'index'])->middleware('cache.api:30');
+Route::get('/payments/{payment}',[PaymentController::class,'show']);
+Route::get('/payments/{payment}/receipt',[PaymentController::class,'receipt']);
+Route::post('/payments/{payment}/capture',[PaymentController::class,'capture']);
+Route::post('/payments/{payment}/cancel',[PaymentController::class,'cancel']);
+Route::post('/payments/{payment}/simulate-webhook',[PaymentController::class,'simulate']);
+Route::post('/payments/{payment}/cod-collected',[PaymentController::class,'cod']);
+Route::get('/refunds',[RefundController::class,'index']);Route::post('/refunds',[RefundController::class,'store']);Route::get('/refunds/{refund}',[RefundController::class,'show']);
+Route::get('/refunds/{refund}/photos/{attachment}',[RefundController::class,'photo']);
+Route::get('/refunds/{refund}/ai-review',[RefundController::class,'aiReview'])->middleware('throttle:30,1,ai-review');Route::post('/refunds/{refund}/ai-review',[RefundController::class,'aiReview'])->middleware('throttle:30,1,ai-review');
+Route::post('/refunds/{refund}/approve',[RefundController::class,'approve']);Route::post('/refunds/{refund}/reject',[RefundController::class,'reject']);
+Route::get('/ledger',[LedgerController::class,'index']);
+Route::get('/reconciliations',[ReconciliationController::class,'index']);Route::post('/reconciliations',[ReconciliationController::class,'store']);Route::get('/reconciliations/{run}',[ReconciliationController::class,'show']);
+Route::post('/reconciliation-items/{item}/resolve',[ReconciliationController::class,'resolve']);
+Route::get('/risk-reviews',[RiskReviewController::class,'index']);Route::post('/risk-reviews/{payment}/clear',[RiskReviewController::class,'clear']);Route::post('/risk-reviews/{payment}/block',[RiskReviewController::class,'block']);
+Route::get('/risk-reviews/{payment}/ai-review',[RiskReviewController::class,'aiReview'])->middleware('throttle:30,1,ai-review');Route::post('/risk-reviews/{payment}/ai-review',[RiskReviewController::class,'aiReview'])->middleware('throttle:30,1,ai-review');

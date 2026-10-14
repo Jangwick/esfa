@@ -1,0 +1,31 @@
+# Environment files (secrets are set in the Vercel dashboard)
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+.vercel
+
+# Local tooling and data
+.claude
+.remember
+backend/database/*.sqlite*
+backend/storage
+backend/bootstrap/cache/*.php
+backend/.phpunit.result.cache
+backups
+**/*.sql
+**/*.dump
+tools/partner-simulator/storage
+
+# Dependencies (installed during build)
+backend/vendor
+frontend/node_modules
+frontend/dist
+
+# Git and OS files
+.git
+.DS_Store
+Thumbs.db
+desktop.ini

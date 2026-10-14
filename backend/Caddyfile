@@ -1,0 +1,7 @@
+# Internal port: start.sh forwards the container's public port ($PORT) here once PHP is ready.
+:9180 {
+    bind 127.0.0.1
+    root * /app/public
+    encode zstd gzip
+    php_server
+}

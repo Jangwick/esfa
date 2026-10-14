@@ -1,0 +1,78 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sfa-api",
+      "runtimeExecutable": "php",
+      "runtimeArgs": [
+        "backend/artisan",
+        "serve",
+        "--host=127.0.0.1",
+        "--port=8010"
+      ],
+      "port": 8010
+    },
+    {
+      "name": "sfa-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "frontend",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5174"
+      ],
+      "port": 5174,
+      "env": {
+        "SFA_API_PROXY": "http://127.0.0.1:8010",
+        "VITE_API_URL": "/api/v1"
+      }
+    },
+    {
+      "name": "partner-sim",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "tools/partner-simulator/server.mjs"
+      ],
+      "port": 8787,
+      "env": {
+        "SFA_API_URL": "http://127.0.0.1:8010/api/v1"
+      }
+    },
+    {
+      "name": "sfa-api-copy",
+      "runtimeExecutable": "php",
+      "runtimeArgs": [
+        "backend/artisan",
+        "serve",
+        "--host=127.0.0.1",
+        "--port=8011",
+        "--no-reload"
+      ],
+      "port": 8011,
+      "env": {
+        "DB_DATABASE": "C:/Users/ADMINI~1/AppData/Local/Temp/claude/C--Users-Administrator-OneDrive---University-of-Perpetual-Help-System-DALTA-Desktop-commision-ESFA/6904c8fa-a939-4fe9-8bd9-f9552f888134/scratchpad/e2e-ai.sqlite"
+      }
+    },
+    {
+      "name": "sfa-web-copy",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "frontend",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5175"
+      ],
+      "port": 5175,
+      "env": {
+        "SFA_API_PROXY": "http://127.0.0.1:8011",
+        "VITE_API_URL": "/api/v1"
+      }
+    }
+  ]
+}
