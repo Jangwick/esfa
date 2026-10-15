@@ -125,11 +125,11 @@ class TicketController extends Controller
     // An AI reply draft for the agent (nothing is sent). fresh=true asks again even when nothing changed.
     public function aiDraft(Request $request, Ticket $ticket)
     {
-        $request->validate(['fresh' => 'sometimes|boolean']);
+        $request->validate(['fresh' => 'sometimes|boolean', 'message_id' => 'sometimes|integer']);
         // Drafting changes no record; the request is kept in ai_insights instead of the audit log.
         $request->attributes->set('audit.skip', true);
 
-        return response()->json($this->service->draftReply($ticket, $request->user(), $request->boolean('fresh')));
+        return response()->json($this->service->draftReply($ticket, $request->user(), $request->boolean('fresh'), $request->integer('message_id') ?: null));
     }
 
     public function message(TicketMessageRequest $request, Ticket $ticket)
@@ -153,7 +153,7 @@ class TicketController extends Controller
         $this->requirePermission('view support');
         $user = $request->user();
         // Admin and Finance see every order; other roles only the orders linked to tickets they can see.
-        $orderIds = $user->hasAnyRole(['Admin', 'Finance']) ? null : $this->service->visibleQuery($user)->whereNotNull('order_id')->select('order_id');
+        $orderIds = $user->hasAnyRole(['Admin', 'Accounting Staff']) ? null : $this->service->visibleQuery($user)->whereNotNull('order_id')->select('order_id');
         $scoped = fn ($query) => $orderIds ? $query->whereIn($query->getModel() instanceof Order ? 'id' : 'order_id', $orderIds) : $query;
         $requesters = $user->can('create tickets');
 
@@ -163,7 +163,7 @@ class TicketController extends Controller
             'orders' => $scoped(Order::with('items')->latest('id'))->limit(200)->get(),
             'payments' => $user->can('view payments') ? $scoped(Payment::latest('id'))->limit(200)->get(['id', 'reference', 'order_id', 'status']) : [],
             'shipments' => $user->can('view shipments') ? $scoped(Shipment::latest('id'))->limit(200)->get(['id', 'reference', 'order_id', 'seller_id', 'status']) : [],
-            'agents' => User::role(['Admin', 'Support Agent'])->authorizedFor('view tickets')->authorizedFor('edit tickets')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'email']),
+            'agents' => User::role(['Admin', 'Administrative Assistant'])->authorizedFor('view tickets')->authorizedFor('edit tickets')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'email']),
         ]);
     }
 

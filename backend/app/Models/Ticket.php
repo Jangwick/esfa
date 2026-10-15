@@ -18,6 +18,8 @@ class Ticket extends Model
         return ['assignee_id' => 'integer', 'tags' => 'array', 'first_response_due_at' => 'datetime', 'resolution_due_at' => 'datetime', 'first_responded_at' => 'datetime', 'resolved_at' => 'datetime', 'closed_at' => 'datetime', 'resolution_paused_at' => 'datetime', 'sla_at_risk_notified_at' => 'datetime', 'sla_breached_notified_at' => 'datetime', 'resolution_paused_seconds' => 'integer', 'csat_score' => 'integer'];
     }
     public function assignee() { return $this->belongsTo(User::class, 'assignee_id'); }
+    // The Support tab's archive cutoff: a ticket 3+ years old is historical and read-only.
+    public function isArchived(): bool { return (bool) $this->created_at?->lt(now()->subYears(3)); }
     public function order() { return $this->belongsTo(Order::class); }
     public function payment() { return $this->belongsTo(Payment::class); }
     public function shipment() { return $this->belongsTo(Shipment::class); }

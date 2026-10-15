@@ -73,6 +73,25 @@ class AiService
         }
     }
 
+    /**
+     * One batchEmbedContents call for a handful of short texts (e.g. ranking address candidates). Returns each text's
+     * vector in order, or null when the key or master switch is off or the call fails — callers then rank themselves.
+     * Not an AI feature: nothing is stored, no insight row, so it stays cheap enough to run per keystroke.
+     */
+    public function embed(array $texts): ?array
+    {
+        if (! config('services.gemini.key') || ! Setting::valueFor('ai_enabled')) { return null; }
+        $model = config('services.gemini.embedding_model', 'gemini-embedding-001');
+        try {
+            $response = Http::withHeaders(['x-goog-api-key' => config('services.gemini.key')])->acceptJson()->timeout((int) config('services.gemini.timeout', 25))->post(sprintf('https://generativelanguage.googleapis.com/v1beta/models/%s:batchEmbedContents', $model), ['requests' => array_map(fn (string $text) => ['model' => 'models/'.$model, 'content' => ['parts' => [['text' => $text]]]], $texts)]);
+        } catch (ConnectionException|HttpClientException|GuzzleException) {
+            return null;
+        }
+        if (! $response->successful()) { return null; }
+        $vectors = $response->json('embeddings');
+        return is_array($vectors) ? array_map(fn ($row) => $row['values'] ?? null, $vectors) : null;
+    }
+
     // The features the signed-in screens may offer (key set, master switch and the feature's own switch on). The daily
     // limit is left out on purpose: a button stays visible and explains the limit when it is pressed.
     public function enabledFeatures(): array

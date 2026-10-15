@@ -117,6 +117,16 @@ class SupportTest extends TestCase
         $this->assertSame(7200, $ticket->fresh()->resolution_paused_seconds);
     }
 
+    public function test_an_archived_ticket_is_read_only(): void
+    {
+        $ticket = $this->ticket();
+        $ticket->update(['created_at' => now()->subYears(4)]);
+        $this->putJson('/api/v1/support/tickets/'.$ticket->id, ['subject' => 'Trying to edit history'], $this->staff())->assertUnprocessable()->assertJsonValidationErrors('ticket');
+        $this->postJson('/api/v1/support/tickets/'.$ticket->id.'/status', ['status' => 'in_progress'], $this->staff())->assertUnprocessable();
+        $this->postJson('/api/v1/support/tickets/'.$ticket->id.'/assign', ['assignee_id' => 'me'], $this->staff())->assertUnprocessable();
+        $this->postJson('/api/v1/support/tickets/'.$ticket->id.'/messages', ['body' => 'A reply to a closed-out year.'], $this->staff())->assertUnprocessable();
+    }
+
     public function test_ticket_with_refund_cannot_be_deleted_and_status_notes_are_readable(): void
     {
         $ticket = $this->ticket();
@@ -285,7 +295,7 @@ class SupportTest extends TestCase
         // Keeping the Admin role keeps the tickets; losing both Admin and Support Agent releases them.
         $this->putJson('/api/v1/users/'.$two->id, ['roles' => ['Admin']], $this->staff())->assertOk();
         $this->assertSame($two->id, $kept->fresh()->assignee_id);
-        $this->putJson('/api/v1/users/'.$two->id, ['roles' => ['Finance']], $this->staff())->assertOk();
+        $this->putJson('/api/v1/users/'.$two->id, ['roles' => ['Accounting Staff']], $this->staff())->assertOk();
         $this->assertNull($kept->fresh()->assignee_id); $this->assertNull($open->fresh()->assignee_id);
     }
 
@@ -412,7 +422,7 @@ class SupportTest extends TestCase
         $one = User::where('email', 'support.one@example.com')->firstOrFail();
         $two = User::where('email', 'support.two@example.com')->firstOrFail();
         $inactive->update(['assignee_id' => $one->id]); $unauthorized->update(['assignee_id' => $two->id]);
-        $one->update(['is_active' => false]); Role::findByName('Support Agent')->revokePermissionTo('view tickets');
+        $one->update(['is_active' => false]); Role::findByName('Administrative Assistant')->revokePermissionTo('view tickets');
         $this->travel(9)->hours();
         Ticket::retrieved(function (Ticket $ticket) use ($broken) {
             if ($ticket->id === $broken->id) { throw new \RuntimeException('One ticket cannot be loaded.'); }
@@ -429,7 +439,7 @@ class SupportTest extends TestCase
     {
         $agent = User::where('email', 'support.one@example.com')->firstOrFail(); $ticket = $this->ticket();
         $ticket->update(['assignee_id' => $agent->id]);
-        Role::findByName('Support Agent')->revokePermissionTo('view tickets');
+        Role::findByName('Administrative Assistant')->revokePermissionTo('view tickets');
         $client = IntegrationClient::firstOrCreate(['system_code' => 'storefront'], ['name' => 'Storefront', 'is_active' => true]);
         $headers = ['Authorization' => 'Bearer '.$client->createToken('notification-access', ['tickets:write'])->plainTextToken];
         Auth::forgetGuards(); $this->postJson('/api/v1/integrations/tickets/'.$ticket->reference.'/messages', ['body' => 'An update.'], $headers)->assertCreated();

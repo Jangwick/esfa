@@ -75,9 +75,9 @@ class AiLogisticsTest extends TestCase
     public function test_address_fill_needs_sign_in_shipment_rights_valid_text_and_the_switch(): void
     {
         $this->parse([])->assertUnauthorized();
-        $this->parse($this->as('Analyst'))->assertForbidden();
-        $this->parse($this->as('Support Agent'))->assertForbidden();
-        $coordinator = $this->as('Logistics Coordinator');
+        $this->parse($this->as('Quality Control Analyst'))->assertForbidden();
+        $this->parse($this->as('Administrative Assistant'))->assertForbidden();
+        $coordinator = $this->as('Warehouseman');
         $this->parse($coordinator, 'short')->assertUnprocessable()->assertJsonValidationErrors('text');
         Http::preventStrayRequests();
         $this->parse($coordinator)->assertUnprocessable()->assertJsonValidationErrors('ai');
@@ -88,7 +88,7 @@ class AiLogisticsTest extends TestCase
         $this->enableAi('address_fill');
         // A made-up id in the answer is ignored: every id comes from SFA's tables.
         $this->fakeGemini(['barangay' => 'Almanza Uno', 'city_id' => 999999] + self::READ);
-        $this->parse($this->as('Logistics Coordinator'))->assertOk()
+        $this->parse($this->as('Warehouseman'))->assertOk()
             ->assertJsonPath('region_id', $this->lasPinas->region_id)->assertJsonPath('province_id', null)->assertJsonPath('city_id', $this->lasPinas->id)->assertJsonPath('barangay_id', $this->almanza->id)
             ->assertJsonPath('line1', 'Blk 5 Lot 7 Mabuhay St.')->assertJsonPath('postal_code', '1740')->assertJsonPath('contact_name', 'Juan Dela Cruz')
             ->assertJsonPath('contact_phone', '09171234567')->assertJsonPath('unmatched', [])
@@ -110,7 +110,7 @@ class AiLogisticsTest extends TestCase
     public function test_the_name_is_read_only_from_a_first_part_that_is_not_address_text(): void
     {
         $this->enableAi('address_fill');
-        $coordinator = $this->as('Logistics Coordinator');
+        $coordinator = $this->as('Warehouseman');
         $this->fakeGemini(self::READ);
         $this->parse($coordinator, 'Blk 5 Lot 7 Mabuhay St., BF Resort Village, Las Pinas City 1740')->assertOk()->assertJsonPath('contact_name', '')
             ->assertJsonPath('city_id', $this->lasPinas->id);
@@ -129,7 +129,7 @@ class AiLogisticsTest extends TestCase
         $nuevaEcija = Province::create(['code' => '0349000000', 'name' => 'Nueva Ecija', 'region_id' => $centralLuzon->id]);
         City::create(['code' => '0349099000', 'name' => 'City of San Jose', 'type' => 'city', 'region_id' => $centralLuzon->id, 'province_id' => $nuevaEcija->id]);
         $this->enableAi('address_fill');
-        $coordinator = $this->as('Logistics Coordinator');
+        $coordinator = $this->as('Warehouseman');
 
         $this->fakeGemini(['city' => 'San Jose', 'province' => 'Batangas', 'region' => ''] + self::READ);
         $this->parse($coordinator, 'Purok 3, San Jose, Batangas 4227')->assertOk()
@@ -153,7 +153,7 @@ class AiLogisticsTest extends TestCase
         $inBatangas = City::create(['code' => '0401099000', 'name' => 'San Jose', 'type' => 'municipality', 'region_id' => $calabarzon->id, 'province_id' => $batangas->id]);
         City::create(['code' => '0349099000', 'name' => 'City of San Jose', 'type' => 'city', 'region_id' => $centralLuzon->id, 'province_id' => $nuevaEcija->id]);
         $this->enableAi('address_fill');
-        $coordinator = $this->as('Logistics Coordinator');
+        $coordinator = $this->as('Warehouseman');
 
         $this->fakeGemini(['city' => 'San Jose', 'province' => 'Batangas', 'region' => '', 'barangay' => 'Nowhere Village'] + self::READ);
         $this->parse($coordinator, 'Purok 3, Brgy. Nowhere Village, San Jose, Batangas 4227')->assertOk()
@@ -171,7 +171,7 @@ class AiLogisticsTest extends TestCase
     {
         $this->enableAi('address_fill');
         $this->fakeGemini(['region' => 'Region of Atlantis', 'barangay' => 'Almanza Uno'] + self::READ);
-        $this->parse($this->as('Logistics Coordinator'))->assertOk()
+        $this->parse($this->as('Warehouseman'))->assertOk()
             ->assertJsonPath('city_id', $this->lasPinas->id)->assertJsonPath('region_id', $this->lasPinas->region_id)->assertJsonPath('barangay_id', $this->almanza->id)
             ->assertJsonPath('unmatched', [])
             ->assertJsonPath('checks.*.result', ['pass', 'fail', 'pass', 'pass'])->assertJsonPath('checks.1.detail', 'Not in SFA\'s location list, left for you to pick: region.');
@@ -180,7 +180,7 @@ class AiLogisticsTest extends TestCase
     public function test_a_bad_zip_code_fails_its_check_and_parts_not_read_do_not_apply(): void
     {
         $this->enableAi('address_fill');
-        $coordinator = $this->as('Logistics Coordinator');
+        $coordinator = $this->as('Warehouseman');
 
         $this->fakeGemini(['postal_code' => '17400', 'barangay' => 'Almanza Uno'] + self::READ);
         $this->parse($coordinator, 'Blk 5 Lot 7 Mabuhay St., Almanza Uno, Las Pinas City 17400')->assertOk()->assertJsonPath('postal_code', '')

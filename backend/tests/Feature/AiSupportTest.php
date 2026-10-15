@@ -409,6 +409,26 @@ class AiSupportTest extends TestCase
         $this->assertSame(['fail', 'Not this ticket\'s records: PAY-2026-000777.'], [$response->json('checks.2.result'), $response->json('checks.2.detail')]);
     }
 
+    public function test_a_draft_can_answer_one_selected_message_and_knows_the_items_without_a_linked_order(): void
+    {
+        $this->enableAi('reply_drafts');
+        $ticket = $this->open(['order_id' => null]);
+        $seller = Seller::create(['source_system' => 'storefront', 'external_id' => 'ai-items-seller', 'shop_name' => 'Items shop']);
+        $this->order->items()->create(['seller_id' => $seller->id, 'product_name' => 'Magic Cement 40kg', 'quantity' => 2, 'unit_price_amount' => 5000, 'line_total_amount' => 10000]);
+        $headers = $this->staff();
+        $mine = $ticket->messages()->firstOrFail();
+        $foreign = $this->open(['order_id' => null])->messages()->firstOrFail();
+        $note = $this->postJson('/api/v1/support/tickets/'.$ticket->id.'/messages', ['body' => 'Staff-only note.', 'is_internal_note' => '1'], $headers)->assertCreated()->json('id');
+
+        $this->postJson($this->draftUrl($ticket), ['message_id' => $foreign->id], $headers)->assertNotFound();
+        $this->postJson($this->draftUrl($ticket), ['message_id' => $note], $headers)->assertNotFound();
+        $this->postJson($this->draftUrl($ticket), ['message_id' => 'x'], $headers)->assertUnprocessable();
+
+        $this->fakeGemini(self::DRAFT);
+        $this->postJson($this->draftUrl($ticket), ['message_id' => $mine->id], $headers)->assertOk()->assertJsonPath('reply', self::DRAFT['reply']);
+        Http::assertSent(fn ($request) => str_contains($request['contents'][0]['parts'][0]['text'], '"reply_to"') && str_contains($request['contents'][0]['parts'][0]['text'], 'Magic Cement 40kg'));
+    }
+
     private function setting(string $key, mixed $value): void
     {
         \App\Models\Setting::updateOrCreate(['key' => $key], ['value' => $value]);

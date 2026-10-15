@@ -51,7 +51,9 @@ class TicketService
     private const DRAFT_PROMPT = 'You draft a reply for a customer-support agent of Archon Nell, a Philippine online marketplace. Use only facts from the ticket, '
         .'the linked records and the knowledge base; never invent a policy, date, amount, tracking detail or promise. When the knowledge base and the records do not '
         .'answer the request, write a short, polite holding reply and say in needs_human_reason what the agent must check (otherwise leave it empty). Greet the '
-        .'requester as {first_name}. Answer in the language the requester used (English, Filipino or Taglish), warm and concise, under 150 words, with no '
+        .'requester as {first_name}. When reply_to names one message, answer that message directly and treat the rest of the conversation as '
+        .'context. requester_items lists what the requester bought recently when no order is linked; use it to identify the item they mean. '
+        .'Answer in the language the requester used (English, Filipino or Taglish), warm and concise, under 150 words, with no '
         .'signature (the agent adds it). Never mention or ask for a password, one-time code (OTP), PIN, CVV or card number, and use only amounts '
         .'and references found in the linked records. source_article_ids: the ids of the knowledge-base articles you '
         .'used. confidence: high when the reply fully answers the request from the facts given, medium when partly, low when the agent must add facts.';
@@ -64,9 +66,9 @@ class TicketService
     {
         abort_unless($user->can('view tickets'), 403, 'This action requires view tickets.');
         $query = Ticket::query();
-        if ($user->hasRole('Admin') || $user->hasRole('Finance')) { return $query; }
-        if ($user->hasRole('Support Agent')) { return $query->where(fn ($q) => $q->whereNull('assignee_id')->orWhere('assignee_id', $user->id)); }
-        if ($user->hasRole('Logistics Coordinator')) { return $query->whereNotNull('shipment_id'); }
+        if ($user->hasAnyRole(['Admin', 'Accounting Staff', 'General Manager', 'Operations Manager', 'Production Supervisor', 'Quality Control Analyst'])) { return $query; }
+        if ($user->hasAnyRole(['Administrative Assistant', 'Safety Officer', 'Sales Representative'])) { return $query->where(fn ($q) => $q->whereNull('assignee_id')->orWhere('assignee_id', $user->id)); }
+        if ($user->hasRole('Warehouseman')) { return $query->whereNotNull('shipment_id'); }
         abort(403, 'This action requires access to support tickets.');
     }
 
@@ -80,6 +82,8 @@ class TicketService
     {
         abort_unless($actor->can($action.' tickets'), 403, 'This action requires '.$action.' tickets.');
         $this->assertView($ticket, $actor);
+        // Archived tickets (3+ years old, the Support tab's cutoff) are read-only: reopening history would corrupt SLA records.
+        if ($ticket->isArchived()) { throw ValidationException::withMessages(['ticket' => ['This ticket is archived and read-only.']]); }
     }
 
     // A null actor is SFA itself (channel system, e.g. the delivery ticket after a failed attempt): its first message is a
@@ -255,9 +259,11 @@ class TicketService
      * the shared canned responses, the last 10 public messages (masked by AiService) and the linked order, payment and
      * shipment the agent may view. Amounts and states are SFA's; the model only words them.
      */
-    public function draftReply(Ticket $ticket, User $actor, bool $fresh = false): array
+    public function draftReply(Ticket $ticket, User $actor, bool $fresh = false, ?int $messageId = null): array
     {
         $this->assertWrite($ticket, $actor);
+        // A selected message anchors the draft on it; internal notes are never sent to the model, so they 404 too.
+        $replyTo = $messageId ? $ticket->messages()->whereKey($messageId)->where('is_internal_note', false)->firstOrFail() : null;
         if ($ticket->status === 'closed') { throw ValidationException::withMessages(['ticket' => ['This ticket is closed. Reopen it before drafting a reply.']]); }
         $articles = KbArticle::where('status', 'published')->orderBy('id')->limit(40)->get(['id', 'title', 'body']);
         $canned = CannedResponse::where(fn ($query) => $query->where('is_shared', true)->orWhere('user_id', $actor->id))->orderBy('id')->limit(40)->get(['title', 'body']);
@@ -282,7 +288,11 @@ class TicketService
             'knowledge_base' => $articles->map(fn ($article) => ['id' => $article->id, 'title' => $article->title, 'body' => mb_substr($article->body, 0, 3000)])->all(),
             'canned_responses' => $canned->map(fn ($response) => ['title' => $response->title, 'body' => mb_substr($response->body, 0, 1500)])->all(),
             'ticket' => ['subject' => $ticket->subject, 'status' => $ticket->status, 'category' => $ticket->category, 'requester' => $ticket->requester_type],
-            'linked_records' => $linked, 'conversation' => $messages,
+            'linked_records' => $linked,
+            'requester_items' => $ticket->order || $ticket->requester_type !== 'customer' ? []
+                : Customer::whereKey($ticket->requester_id)->first()?->orders()->with('items')->latest('placed_at')->limit(3)->get()->flatMap->items->map(fn ($item) => $item->quantity.' x '.$item->product_name)->values()->all() ?? [],
+            'reply_to' => $replyTo ? ['from' => $replyTo->author_type === 'user' ? 'agent' : $replyTo->author_type, 'at' => $replyTo->created_at->toIso8601String(), 'text' => mb_substr($replyTo->body, 0, 2000)] : null,
+            'conversation' => $messages,
         ], $schema, ['thinking' => 'medium', 'fresh' => $fresh, 'user' => $actor->id]);
         abort_unless($insight->ok(), 503, $insight->error);
         $answer = $insight->output;
@@ -330,7 +340,7 @@ class TicketService
         $this->assertWrite($ticket, $actor);
         $id = $assignee === 'me' ? $actor->id : (int) $assignee;
         if (! $actor->hasRole('Admin') && $id !== $actor->id) { abort(403, 'Support agents may only assign tickets to themselves.'); }
-        $agent = User::role(['Admin', 'Support Agent'])->authorizedFor('view tickets')->authorizedFor('edit tickets')->where('is_active', true)->find($id);
+        $agent = User::role(['Admin', 'Administrative Assistant'])->authorizedFor('view tickets')->authorizedFor('edit tickets')->where('is_active', true)->find($id);
         if (! $agent) { throw ValidationException::withMessages(['assignee_id' => ['Choose an active Support Agent or Admin.']]); }
 
         return DB::transaction(function () use ($ticket, $id, $actor) {
@@ -380,7 +390,7 @@ class TicketService
 
     public function message(Ticket $ticket, array $values, array $files, User|IntegrationClient $actor): TicketMessage
     {
-        if ($actor instanceof User) { $this->assertWrite($ticket, $actor); } else { $this->assertView($ticket, $actor); }
+        if ($actor instanceof User) { $this->assertWrite($ticket, $actor); } else { $this->assertView($ticket, $actor); if ($ticket->isArchived()) { throw ValidationException::withMessages(['ticket' => ['This ticket is archived and read-only.']]); } }
 
         return DB::transaction(function () use ($ticket, $values, $files, $actor) {
             $ticket = Ticket::whereKey($ticket->id)->lockForUpdate()->firstOrFail();
@@ -398,7 +408,7 @@ class TicketService
             $old = $ticket->only(['status', 'assignee_id']);
             if ($staff && ! $internal) {
                 $ticket->first_responded_at ??= now();
-                if (! $ticket->assignee_id && $actor->hasRole('Support Agent')) { $ticket->assignee_id = $actor->id; }
+                if (! $ticket->assignee_id && $actor->hasRole('Administrative Assistant')) { $ticket->assignee_id = $actor->id; }
                 $ticket->save();
             }
             if ($follow) { $this->applyTransition($ticket, 'in_progress', $staff ? $actor : null, $staff ? 'Moved automatically by the reply.' : 'Moved automatically: the '.$ticket->requester_type.' replied.'); }
@@ -416,6 +426,7 @@ class TicketService
     public function csat(Ticket $ticket, array $values, IntegrationClient $actor): Ticket
     {
         $this->assertView($ticket, $actor);
+        if ($ticket->isArchived()) { throw ValidationException::withMessages(['ticket' => ['This ticket is archived and read-only.']]); }
 
         return DB::transaction(function () use ($ticket, $values) {
             $ticket = Ticket::whereKey($ticket->id)->lockForUpdate()->firstOrFail();
@@ -491,9 +502,9 @@ class TicketService
     // Call inside a transaction: the agent rows are locked so concurrent assignments see each other's counts.
     private function leastLoadedAgent(): ?User
     {
-        User::role('Support Agent')->authorizedFor('view tickets')->authorizedFor('edit tickets')->where('is_active', true)->orderBy('id')->lockForUpdate()->get(['id']);
+        User::role('Administrative Assistant')->authorizedFor('view tickets')->authorizedFor('edit tickets')->where('is_active', true)->orderBy('id')->lockForUpdate()->get(['id']);
 
-        return User::role('Support Agent')->authorizedFor('view tickets')->authorizedFor('edit tickets')->where('is_active', true)->withCount(['assignedTickets as active_tickets_count' => fn ($q) => $q->whereNotIn('status', ['resolved', 'closed'])])->orderBy('active_tickets_count')->orderBy('id')->first();
+        return User::role('Administrative Assistant')->authorizedFor('view tickets')->authorizedFor('edit tickets')->where('is_active', true)->withCount(['assignedTickets as active_tickets_count' => fn ($q) => $q->whereNotIn('status', ['resolved', 'closed'])])->orderBy('active_tickets_count')->orderBy('id')->first();
     }
 
     // A deactivated agent (or one who lost the Admin and Support Agent roles) cannot work their open tickets, and Support
@@ -576,7 +587,7 @@ class TicketService
                     $state = $ticket->sla_state;
                     $field = $state === 'at_risk' ? 'sla_at_risk_notified_at' : ($state === 'breached' ? 'sla_breached_notified_at' : null);
                     if (! $field || $ticket->$field) { return 0; }
-                    $ids = $ticket->assignee_id ? $this->activeAssigneeIds($ticket) : User::role(['Admin', 'Support Agent'])->authorizedFor('view tickets')->where('is_active', true)->pluck('id')->all();
+                    $ids = $ticket->assignee_id ? $this->activeAssigneeIds($ticket) : User::role(['Admin', 'Administrative Assistant'])->authorizedFor('view tickets')->where('is_active', true)->pluck('id')->all();
                     // A breach is escalated: the active Admins hear about it too, once, alongside the assignee.
                     if ($state === 'breached') { $ids = array_unique([...$ids, ...$this->activeAdminIds()]); }
                     foreach ($ids as $userId) { Notification::create(['user_id' => $userId, 'type' => 'ticket_sla_'.$state, 'title' => $state === 'breached' ? 'Ticket SLA breached' : 'Ticket SLA at risk', 'message' => $ticket->reference.': '.$ticket->subject, 'data' => ['ticket_id' => $ticket->id]]); }
