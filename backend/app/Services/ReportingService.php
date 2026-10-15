@@ -37,13 +37,13 @@ class ReportingService
             if(empty($filters['courier_id']))$q->orWhere(function($q)use($actor,$filters){$q->whereNotNull('invoice_id');if(!empty($filters['seller_id']))$q->where('seller_id',$filters['seller_id']);if($this->ownOnly($actor))$q->whereHas('seller',fn($s)=>$s->where('source_system',$actor->system_code));});
         });
         if(!empty($filters['method']))$query->where('method',$filters['method']);
-        if($actor instanceof User&&$actor->hasRole('Support Agent')&&!$actor->hasAnyRole(['Admin','Finance','Analyst']))$query->where(function($q)use($actor){$visible=app(TicketService::class)->visibleQuery($actor);$q->whereIn('id',(clone $visible)->whereNotNull('payment_id')->select('payment_id'))->orWhereIn('order_id',(clone $visible)->whereNotNull('order_id')->select('order_id'));});
+        if($actor instanceof User&&$actor->hasRole('Administrative Assistant')&&!$actor->hasAnyRole(['Admin','Accounting Staff','Quality Control Analyst']))$query->where(function($q)use($actor){$visible=app(TicketService::class)->visibleQuery($actor);$q->whereIn('id',(clone $visible)->whereNotNull('payment_id')->select('payment_id'))->orWhereIn('order_id',(clone $visible)->whereNotNull('order_id')->select('order_id'));});
         return $query;
     }
     private function tickets(User|IntegrationClient $actor,array $filters): Builder
     {
         $q=Ticket::query();
-        if($actor instanceof User&&!$actor->hasAnyRole(['Admin','Finance','Analyst']))$q=app(TicketService::class)->visibleQuery($actor);
+        if($actor instanceof User&&!$actor->hasAnyRole(['Admin','Accounting Staff','Quality Control Analyst']))$q=$actor->can('view tickets')?app(TicketService::class)->visibleQuery($actor):$q->whereRaw('1 = 0');
         elseif($this->ownOnly($actor))$q->where('source_system',$actor->system_code);
         if(!empty($filters['seller_id'])||!empty($filters['method'])||!empty($filters['courier_id']))$q->whereIn('order_id',$this->orders($actor,$filters)->select('id'));
         return $q;
@@ -53,7 +53,7 @@ class ReportingService
         $q=Shipment::query()->whereIn('order_id',$this->orders($actor,$filters)->select('id'));
         if(!empty($filters['seller_id']))$q->where('seller_id',$filters['seller_id']);
         if(!empty($filters['courier_id']))$q->where('courier_id',$filters['courier_id']);
-        if($actor instanceof User&&$actor->hasRole('Support Agent')&&!$actor->hasAnyRole(['Admin','Finance','Logistics Coordinator','Analyst'])){$visible=app(TicketService::class)->visibleQuery($actor);$q->where(fn($q)=>$q->whereIn('id',(clone $visible)->whereNotNull('shipment_id')->select('shipment_id'))->orWhereIn('order_id',(clone $visible)->whereNotNull('order_id')->select('order_id')));}
+        if($actor instanceof User&&$actor->hasRole('Administrative Assistant')&&!$actor->hasAnyRole(['Admin','Accounting Staff','Warehouseman','Quality Control Analyst'])){$visible=app(TicketService::class)->visibleQuery($actor);$q->where(fn($q)=>$q->whereIn('id',(clone $visible)->whereNotNull('shipment_id')->select('shipment_id'))->orWhereIn('order_id',(clone $visible)->whereNotNull('order_id')->select('order_id')));}
         return $q;
     }
     private function subscriptions(User|IntegrationClient $actor,array $filters): Builder
@@ -105,8 +105,8 @@ class ReportingService
     public function dashboard(User $user): array
     {
         $zone=Setting::valueFor('business_timezone','Asia/Manila');$filters=['date_from'=>now($zone)->startOfMonth()->toDateString(),'date_to'=>now($zone)->toDateString()];$all=$this->summary($user,$filters);$summary=[];
-        $analyst=$user->hasRole('Analyst');
-        if($user->hasAnyRole(['Admin','Finance','Analyst']))foreach(['gmv_amount','captured_amount','captured_count','net_revenue_amount','refund_rate'] as $key)$summary[$key]=$all[$key];
+        $analyst=$user->hasRole('Quality Control Analyst');
+        if($user->hasAnyRole(['Admin','Accounting Staff','Quality Control Analyst']))foreach(['gmv_amount','captured_amount','captured_count','net_revenue_amount','refund_rate'] as $key)$summary[$key]=$all[$key];
         if($user->can('view tickets')||$analyst)foreach(['open_tickets','sla_compliance','sla_resolved_count'] as $key)$summary[$key]=$all[$key];
         if($user->can('view shipments')||$analyst)foreach(['shipments_in_transit','on_time_rate','delivered_count'] as $key)$summary[$key]=$all[$key];
         if($user->can('view subscriptions')||$analyst)$summary['active_subscriptions']=$all['active_subscriptions'];

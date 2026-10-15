@@ -73,6 +73,8 @@ class AnalyticsTest extends TestCase
             $this->assertStringStartsWith('text/csv', $csv->headers->get('Content-Type'));
             $this->assertStringContainsString('Name,', $csv->streamedContent());
         }
+        $all = $this->as('analyst@example.com')->get('/api/v1/analytics/export?report=all')->assertOk();
+        foreach ($reports as $report) { $this->assertStringContainsString($report['title'], $all->streamedContent()); }
         $this->assertSame(1, collect($reports['payments_by_method']['data'])->firstWhere('name', 'card')['value']);
         $this->as('analyst@example.com')->getJson('/api/v1/analytics/export?report=bogus')->assertUnprocessable()->assertJsonValidationErrors('report');
         $this->as('support.one@example.com')->getJson('/api/v1/analytics/charts')->assertForbidden();

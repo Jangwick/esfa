@@ -14,7 +14,7 @@ class AnalyticsController extends Controller
     public function integration(AnalyticsRequest $r,ReportingService $s){return response()->json($s->summary($r->user(),$r->validated()));}
     public function export(AnalyticsRequest $r,ReportingService $s)
     {
-        $r->validate(['report'=>'required']);$report=$s->charts($r->user(),$r->validated())[$r->report];
-        return response()->streamDownload(function()use($report){$stream=fopen('php://output','w');fwrite($stream,"\xEF\xBB\xBF");fputcsv($stream,['Name','Value ('.$report['unit'].')']);foreach($report['data'] as $row){fputcsv($stream,[ListResponse::cell($row['name']),$row['value']]);}fclose($stream);},$r->report.'.csv',['Content-Type'=>'text/csv; charset=UTF-8']);
+        $r->validate(['report'=>'required']);$all=$r->report==='all';$reports=$s->charts($r->user(),$r->validated());$selected=$all?$reports:[$reports[$r->report]];
+        return response()->streamDownload(function()use($selected,$all){$stream=fopen('php://output','w');fwrite($stream,"\xEF\xBB\xBF");foreach($selected as $report){if($all){fputcsv($stream,[$report['title']]);}fputcsv($stream,['Name','Value ('.$report['unit'].')']);foreach($report['data'] as $row){fputcsv($stream,[ListResponse::cell($row['name']),$row['value']]);}if($all){fputcsv($stream,[]);}}fclose($stream);},($all?'reports':$r->report).'.csv',['Content-Type'=>'text/csv; charset=UTF-8']);
     }
 }
