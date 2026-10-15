@@ -2,7 +2,7 @@
 // lists them under the module, the page renders them as its tabs (moduleTabs), and each one opens directly at
 // `${path}?tab=${tab}`. The first section is the page's default tab. `hint` tells the employee what the section is for
 // and what to do next; `permission` / `visible` hide a section the signed-in user cannot open.
-const financeAccess = ({ roles }) => !roles.includes('Support Agent') || roles.some((role) => ['Admin', 'Finance'].includes(role))
+const financeAccess = ({ roles }) => !roles.includes('Administrative Assistant') || roles.some((role) => ['Admin', 'Accounting Staff'].includes(role))
 
 export const navigation = [
   { name: 'Dashboard', path: '/dashboard', icon: 'fa-border-all', permission: 'view dashboard' },

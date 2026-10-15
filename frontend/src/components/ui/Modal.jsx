@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef } from 'react'
+import { createPortal } from 'react-dom'
 
 export default function Modal({ isOpen, onClose, title, children }) {
   const closeRef = useRef(null)
@@ -64,7 +65,9 @@ export default function Modal({ isOpen, onClose, title, children }) {
 
   if (!isOpen) return null
 
-  return (
+  // Rendered at <body> level so the fixed backdrop always covers the viewport: inside the page tree a transformed or
+  // filtered ancestor would shrink it to that ancestor's box instead.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
       onMouseDown={(e) => { pressedBackdrop.current = e.target === e.currentTarget }}
@@ -94,6 +97,7 @@ export default function Modal({ isOpen, onClose, title, children }) {
         </div>
         <div className="p-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

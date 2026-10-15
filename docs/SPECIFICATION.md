@@ -69,10 +69,24 @@ Permission names follow PDMS: `"<action> <module>"` with actions `view`, `create
 | Role | Can |
 |---|---|
 | **Admin** | All staff views and actions regardless of individual permission grants, including own refund approval/rejection, ticket assignment, users and roles, integration clients and tokens, webhooks, settings, audit logs |
-| **Finance** | Payments, refunds (approve/reject), ledger, reconciliation, risk review, plans, subscriptions, invoices, commission rules, settlements, payouts; read support tickets and shipments |
-| **Support Agent** | Tickets (own and unassigned), knowledge base, canned responses; read payments, refunds, shipments of the related order; request refunds |
-| **Logistics Coordinator** | Shipments, shipment events and proof of delivery, couriers, zones, rates, warehouses, locations; read tickets linked to shipments |
-| **Analyst** | Read-only access to dashboard, analytics, reports and CSV exports |
+| **General Manager** | Read every module plus audit logs; approve refunds, finalize and pay settlements |
+| **Operations Manager** | Full support, logistics and billing operations (tickets, knowledge base, canned responses, SLA policies, shipments, couriers, zones, rates, warehouses, locations, subscriptions, plans, invoices, commission rules, commissions, settlements, payouts); read payments, refunds, ledger, reconciliation, risk review, analytics, reports |
+| **Production Supervisor** | Read dashboard, support, tickets, logistics, shipments, warehouses, analytics |
+| **Production Operator** | Read dashboard and shipments |
+| **Chemical Mixer** | Dashboard only |
+| **Quality Control Analyst** | Read dashboard, analytics, reports, support, tickets |
+| **Laboratory Technician** | Dashboard only |
+| **Safety Officer** | Read dashboard, support and tickets; create tickets |
+| **Maintenance Technician** | Read dashboard, shipments and warehouses |
+| **Warehouseman** | Shipments, shipment events and proof of delivery, couriers, zones, rates, warehouses, locations; read tickets linked to shipments |
+| **Inventory Controller** | Warehouses, zones, locations; read dashboard, logistics, shipments |
+| **Purchasing Officer** | Read dashboard, subscriptions, invoices, settlements |
+| **Sales Representative** | Read dashboard, support, tickets, shipments, subscriptions; create tickets |
+| **Accounting Staff** | Payments, refunds (approve/reject), ledger, reconciliation, risk review, plans, subscriptions, invoices, commission rules, settlements, payouts; read support tickets and shipments |
+| **HR Staff** | Staff accounts and roles; read dashboard |
+| **Administrative Assistant** | Tickets (own and unassigned), knowledge base, canned responses; read payments, refunds, shipments of the related order; request refunds |
+| **Delivery Driver** | Read dashboard, logistics and shipments |
+| **Utility Worker** | Dashboard only |
 
 Special permissions: `approve refunds`, `finalize settlements`, `pay settlements`, `manage integrations`, `view audit logs`, `manage settings`.
 Sidebar items are shown only to users who have the module's `view` permission.
@@ -526,8 +540,13 @@ from `openapi.yaml`.
 ## 8. Seed data and demo accounts
 
 - Roles and permissions (§1.1). Users (password `password`, all `@example.com`): `admin@example.com` (Admin),
-  `finance@example.com` (Finance), `support.one@example.com` and `support.two@example.com` (Support Agent),
-  `logistics@example.com` (Logistics Coordinator), `analyst@example.com` (Analyst).
+  `finance@example.com` (Accounting Staff), `support.one@example.com` and `support.two@example.com` (Administrative Assistant),
+  `logistics@example.com` (Warehouseman), `analyst@example.com` (Quality Control Analyst), `gm@example.com` (General Manager),
+  `ops@example.com` (Operations Manager), `production.supervisor@example.com` (Production Supervisor), `operator@example.com`
+  (Production Operator), `mixer@example.com` (Chemical Mixer), `lab@example.com` (Laboratory Technician), `safety@example.com`
+  (Safety Officer), `maintenance@example.com` (Maintenance Technician), `inventory@example.com` (Inventory Controller),
+  `purchasing@example.com` (Purchasing Officer), `sales@example.com` (Sales Representative), `hr@example.com` (HR Staff),
+  `driver@example.com` (Delivery Driver), `utility@example.com` (Utility Worker).
 - Demo customers, sellers, categories and about 60 orders over the last 45 days with payments in every status, refunds, tickets in
   every status and SLA state, shipments in every status with timelines, plans, subscriptions (incl. trialing and past due),
   commission rules, entries and two settlement periods. Demo data is created only by seeders and is clearly fake.

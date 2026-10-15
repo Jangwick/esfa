@@ -8,6 +8,8 @@ return ['gemini' => [
     'model' => env('SFA_GEMINI_MODEL', 'gemini-3.5-flash-lite'),
     // Tried once when the model answers 429 (rate limit) or 5xx; empty = no retry.
     'fallback_model' => env('SFA_GEMINI_FALLBACK_MODEL', 'gemini-3.1-flash-lite'),
+    // Ranked lists (address search suggestions), not answers: batch-embedded and compared server-side.
+    'embedding_model' => env('SFA_GEMINI_EMBEDDING_MODEL', 'gemini-embedding-001'),
     'timeout' => (int) env('SFA_GEMINI_TIMEOUT', 25),
     // Pause before the last retry of a request someone is waiting for (AiService::send).
     'retry_pause_ms' => (int) env('SFA_GEMINI_RETRY_PAUSE_MS', 2000),
