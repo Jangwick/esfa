@@ -166,17 +166,37 @@ class LogisticsController extends Controller
         return response()->json($service->parseAddress($data['text'], $request->user()));
     }
 
+    // Typeahead for the map search: ranked address candidates, nothing saved, same guard as the AI fill above.
+    public function suggestAddress(Request $request, LogisticsService $service)
+    {
+        abort_unless($request->user()->canAny(['create shipments', 'edit shipments', 'create warehouses', 'edit warehouses']), 403, 'This action requires create shipments.');
+        $data = $request->validate(['text' => 'required|string|min:3|max:200']);
+        $request->attributes->set('audit.skip', true);
+
+        return response()->json(['data' => $service->addressSuggestions($data['text'])]);
+    }
+
+    // A dropped map pin names its place: the service returns the matching PSGC ids so the selects follow the pin.
+    public function reverseAddress(Request $request, LogisticsService $service)
+    {
+        abort_unless($request->user()->canAny(['create shipments', 'edit shipments', 'create warehouses', 'edit warehouses']), 403, 'This action requires create shipments.');
+        $data = $request->validate(['latitude' => 'required|numeric|between:-90,90', 'longitude' => 'required|numeric|between:-180,180']);
+        $request->attributes->set('audit.skip', true);
+
+        return response()->json($service->reverseAddress((float) $data['latitude'], (float) $data['longitude']));
+    }
+
     public function options(Request $request)
     {
         $this->requirePermission('view shipments');
         $user = $request->user();
-        if (($user->can('create shipments') || $user->can('edit shipments')) && (! $user->hasRole('Support Agent') || $user->hasAnyRole(['Admin', 'Finance', 'Logistics Coordinator']))) {
+        if (($user->can('create shipments') || $user->can('edit shipments')) && (! $user->hasRole('Administrative Assistant') || $user->hasAnyRole(['Admin', 'Accounting Staff', 'Warehouseman']))) {
             $orders = Order::with('items')->where('status_snapshot', '!=', 'cancelled')->orderByDesc('id')->limit(200)->get(); $sellers = Seller::orderBy('shop_name')->get();
         } else {
             $visible = $this->visible($request);
             $orders = Order::with('items')->whereIn('id', (clone $visible)->select('order_id'))->orderByDesc('id')->get(); $sellers = Seller::whereIn('id', (clone $visible)->select('seller_id'))->orderBy('shop_name')->get();
         }
-        return response()->json(['orders' => $orders, 'sellers' => $sellers, 'couriers' => Courier::orderBy('name')->get(), 'warehouses' => Warehouse::with(['address.region', 'address.province', 'address.city', 'address.barangay'])->orderBy('name')->get()]);
+        return response()->json(['orders' => $orders, 'sellers' => $sellers, 'couriers' => Courier::orderBy('name')->get(), 'warehouses' => Warehouse::with(['address.region', 'address.province', 'address.city', 'address.barangay'])->orderBy('name')->get(), 'systems' => \App\Models\IntegrationClient::where('is_active', true)->pluck('name', 'system_code')]);
     }
 
     /** Support Agents read only shipments linked to their own or unassigned tickets (directly or through the order). */

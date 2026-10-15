@@ -30,6 +30,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -63,7 +64,7 @@ class LogisticsService
     {
         abort_unless($user->can('view shipments'), 403, 'This action requires view shipments.');
         $query = Shipment::query();
-        if ($user->hasRole('Support Agent') && ! $user->hasAnyRole(['Admin', 'Finance', 'Logistics Coordinator'])) {
+        if ($user->hasRole('Administrative Assistant') && ! $user->hasAnyRole(['Admin', 'Accounting Staff', 'Warehouseman'])) {
             $tickets = app(TicketService::class)->visibleQuery($user);
             $query->where(fn ($q) => $q->whereIn('id', (clone $tickets)->whereNotNull('shipment_id')->select('shipment_id'))->orWhereIn('order_id', (clone $tickets)->whereNotNull('order_id')->select('order_id')));
         }
@@ -116,7 +117,7 @@ class LogisticsService
             ->where('orders.status_snapshot', '!=', 'cancelled')
             ->where(fn ($query) => $query->whereHas('payments', fn ($payment) => $payment->whereIn('status', ['captured', 'partially_refunded']))->orWhereHas('payments', fn ($payment) => $payment->where('method', 'cod')->where('status', 'pending')->where('risk_level', 'none')))
             ->whereNotExists(fn ($query) => $query->selectRaw('1')->from('shipments')->whereColumn('shipments.order_id', 'orders.id')->whereColumn('shipments.seller_id', 'pairs.seller_id'));
-        if ($actor && $actor->hasRole('Support Agent') && ! $actor->hasAnyRole(['Admin', 'Finance', 'Logistics Coordinator'])) {
+        if ($actor && $actor->hasRole('Administrative Assistant') && ! $actor->hasAnyRole(['Admin', 'Accounting Staff', 'Warehouseman'])) {
             $query->whereIn('orders.id', app(TicketService::class)->visibleQuery($actor)->whereNotNull('order_id')->select('order_id'));
         }
         return $query;
@@ -128,7 +129,7 @@ class LogisticsService
             $integration = $actor instanceof IntegrationClient;
             $orderQuery = Order::query(); $sellerQuery = Seller::query();
             if ($integration) { $orderQuery->where('source_system', $actor->system_code); $sellerQuery->where('source_system', $actor->system_code); }
-            elseif ($actor->hasRole('Support Agent') && ! $actor->hasAnyRole(['Admin', 'Finance', 'Logistics Coordinator'])) {
+            elseif ($actor->hasRole('Administrative Assistant') && ! $actor->hasAnyRole(['Admin', 'Accounting Staff', 'Warehouseman'])) {
                 $orderQuery->whereIn('id', app(TicketService::class)->visibleQuery($actor)->whereNotNull('order_id')->select('order_id'));
             }
             $order = isset($values['order_id']) ? $orderQuery->whereKey($values['order_id'])->lockForUpdate()->firstOrFail() : $orderQuery->where('external_id', $values['order_external_id'])->lockForUpdate()->firstOrFail();
@@ -141,11 +142,13 @@ class LogisticsService
             $destination = $this->address($values['destination']);
             $quote = collect($this->quotes(['origin_city_id' => $warehouse->address->city_id, 'destination_city_id' => $destination->city_id, 'weight_grams' => $values['weight_grams'], 'dimensions' => $values['dimensions'], 'cod_amount' => $values['cod_amount']]))->first(fn ($quote) => (! isset($values['courier_id']) || ($quote['courier_id'] === (int) $values['courier_id'] && $quote['service_type'] === $values['service_type'])) && (! isset($values['rate_id']) || $quote['rate_id'] === (int) $values['rate_id']));
             if (! $quote) { throw ValidationException::withMessages(['courier_id' => ['No active rate covers this route, service and chargeable weight.']]); }
+            $codPayment = Payment::where('order_id', $order->id)->where('method', 'cod')->where('status', 'pending')->lockForUpdate()->first();
             if ($values['cod_amount'] > 0) {
-                $payment = Payment::where('order_id', $order->id)->where('method', 'cod')->where('status', 'pending')->lockForUpdate()->first();
-                if (! $payment || $values['cod_amount'] + Shipment::where('order_id', $order->id)->sum('cod_amount') > $payment->total_amount) { throw ValidationException::withMessages(['cod_amount' => ['COD shipments cannot exceed the pending COD payment amount.']]); }
-                if ($payment->risk_level !== 'none') { throw ValidationException::withMessages(['cod_amount' => ['This COD payment is held for risk review. Finance must clear it before the order ships.']]); }
+                if (! $codPayment || $values['cod_amount'] + Shipment::where('order_id', $order->id)->sum('cod_amount') > $codPayment->total_amount) { throw ValidationException::withMessages(['cod_amount' => ['COD shipments cannot exceed the pending COD payment amount.']]); }
+                if ($codPayment->risk_level !== 'none') { throw ValidationException::withMessages(['cod_amount' => ['This COD payment is held for risk review. Finance must clear it before the order ships.']]); }
             }
+            // Every shipment of a COD order must carry cash collection, or the payment can never capture once the goods leave.
+            elseif ($codPayment) { throw ValidationException::withMessages(['cod_amount' => ['This order is cash on delivery: enter this seller\'s COD amount.']]); }
             $shipment = Shipment::create(['order_id' => $order->id, 'seller_id' => $seller->id, 'courier_id' => $quote['courier_id'], 'service_type' => $quote['service_type'], 'tracking_number' => $values['tracking_number'] ?? null, 'origin_warehouse_id' => $warehouse->id, 'destination_address_id' => $destination->id, 'weight_grams' => $values['weight_grams'], 'dimensions' => $values['dimensions'], 'shipping_fee_amount' => $quote['total_amount'], 'cod_amount' => $values['cod_amount'], 'promised_from' => $quote['eta_from'], 'promised_to' => $quote['eta_to'], 'created_by' => $integration ? null : $actor->id]);
             Reference::assign($shipment, 'SHP');
             $shipment->events()->create(['status' => 'pending', 'note' => 'Shipment created.', 'occurred_at' => now(), 'source' => $integration ? 'integration' : 'manual', 'created_by' => $integration ? null : $actor->id]);
@@ -404,6 +407,61 @@ class LogisticsService
             'region_id' => $regionId, 'province_id' => $city ? $city->province_id : ($province?->region_id === $regionId ? $province?->id : null), 'city_id' => $city?->id, 'barangay_id' => $barangay?->id,
             'line1' => $read['line1'], 'line2' => $read['line2'], 'postal_code' => $zipOk ? $zip : '', 'contact_name' => $name, 'contact_phone' => $phone,
             'unmatched' => $unmatched, 'read' => array_intersect_key($read, array_flip(['region', 'province', 'city', 'barangay'])), 'checks' => $checks,
+        ];
+    }
+
+    /**
+     * Map search candidates for the pin picker: OpenStreetMap's geocoder finds the places, and when the embedding
+     * model is up it re-ranks them by how close each candidate's description is to the typed text. Falls back to the
+     * geocoder's own order whenever the AI is off or unreachable, so the search bar always answers.
+     */
+    public function addressSuggestions(string $text): array
+    {
+        $response = Http::withHeaders(['User-Agent' => 'ArchonNell-SFA/1.0 address search'])->timeout(10)->get('https://nominatim.openstreetmap.org/search', ['q' => $text, 'format' => 'json', 'limit' => 8, 'countrycodes' => 'ph', 'accept-language' => 'en']);
+        $hits = collect($response->successful() ? $response->json() : [])->map(fn (array $hit) => ['label' => mb_substr((string) ($hit['display_name'] ?? ''), 0, 300), 'lat' => round((float) ($hit['lat'] ?? 0), 7), 'lng' => round((float) ($hit['lon'] ?? 0), 7)])->filter(fn (array $hit) => $hit['label'] !== '' && $hit['lat'] && $hit['lng'])->values()->all();
+        if (count($hits) < 2 || ! $vectors = app(AiService::class)->embed([AiService::mask($text), ...array_column($hits, 'label')])) { return $hits; }
+        $query = array_shift($vectors);
+        if (! is_array($query)) { return $hits; }
+        $candidates = $vectors;
+        $norm = fn (array $vector) => sqrt(array_sum(array_map(fn ($x) => $x * $x, $vector)));
+        $queryNorm = $norm($query) ?: 1;
+        $scores = array_map(fn ($vector) => is_array($vector) ? array_sum(array_map(fn ($x, $y) => $x * $y, $query, $vector)) / ($queryNorm * ($norm($vector) ?: 1)) : 0, $candidates);
+        array_multisort($scores, SORT_DESC, $hits);
+        return $hits;
+    }
+
+    /**
+     * A pinned map point becomes SFA location ids: the geocoder names the place, then the city name is matched to the
+     * PSGC list (its region and province follow the city row, so differently-worded region names never matter) and the
+     * barangay is matched inside that city. Anything unmatched is returned for the picker to leave alone.
+     */
+    public function reverseAddress(float $latitude, float $longitude): array
+    {
+        $hit = Http::withHeaders(['User-Agent' => 'ArchonNell-SFA/1.0 address search'])->timeout(10)->get('https://nominatim.openstreetmap.org/reverse', ['lat' => $latitude, 'lon' => $longitude, 'format' => 'json', 'zoom' => 18, 'addressdetails' => 1, 'accept-language' => 'en']);
+        $address = $hit->successful() ? ($hit->json('address') ?? []) : [];
+        $place = mb_substr((string) ($hit->json('display_name') ?? ''), 0, 300);
+
+        $cityKey = self::placeKey($address['city'] ?? $address['town'] ?? $address['municipality'] ?? $address['county'] ?? '');
+        $cities = $cityKey === '' ? collect() : City::get(['id', 'name', 'province_id', 'region_id'])->filter(fn ($row) => self::placeKey($row->name) === $cityKey)->values();
+        // Same-name cities exist (seven San Fernandos): the geocoder's state narrows to its province or region when it can.
+        $stateKey = self::placeKey($address['state'] ?? $address['province'] ?? '');
+        if ($cities->count() > 1 && $stateKey !== '') {
+            $narrowed = $cities->filter(fn ($city) => ($city->province_id && self::placeKey($city->province->name ?? '') === $stateKey) || ($city->region_id && self::placeKey($city->region->name ?? '') === $stateKey));
+            if ($narrowed->count() === 1) { $cities = $narrowed->values(); }
+        }
+        $city = $cities->count() === 1 ? $cities->first() : null;
+
+        $barangayKey = self::placeKey($address['village'] ?? $address['suburb'] ?? $address['quarter'] ?? $address['neighbourhood'] ?? '');
+        $barangay = $city && $barangayKey !== '' ? Barangay::where('city_id', $city->id)->get(['id', 'name'])->first(fn ($row) => self::placeKey($row->name) === $barangayKey) : null;
+
+        $road = trim(implode(' ', array_filter([(string) ($address['house_number'] ?? ''), (string) ($address['road'] ?? '')])));
+        $zip = (string) ($address['postcode'] ?? '');
+
+        return [
+            'place' => $place,
+            'region_id' => $city?->region_id, 'province_id' => $city?->province_id, 'city_id' => $city?->id, 'barangay_id' => $barangay?->id,
+            'line1' => mb_substr($road, 0, 255), 'postal_code' => preg_match('/^\d{4}$/', $zip) ? $zip : '',
+            'unmatched' => array_values(array_filter([$city ? null : ($address['city'] ?? $address['town'] ?? $address['municipality'] ?? 'unresolved'), ($city && ! $barangay && $barangayKey !== '') ? ($address['village'] ?? $address['suburb'] ?? 'barangay') : null])),
         ];
     }
 

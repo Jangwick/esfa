@@ -123,6 +123,13 @@ class LogisticsTest extends TestCase
         $this->assertTrue(DB::table('ledger_entries')->where('payment_id', $payment->id)->where('account', 'cash_on_delivery')->exists());
     }
 
+    public function test_a_cod_order_cannot_ship_without_booking_cash(): void
+    {
+        Payment::create(['order_id' => $this->order->id, 'customer_id' => $this->order->customer_id, 'method' => 'cod', 'gateway' => 'cod', 'total_amount' => 10000, 'reference' => 'PAY-2026-COD-ZERO']);
+        $this->staff()->postJson('/api/v1/logistics/shipments', $this->payload())->assertUnprocessable()->assertJsonValidationErrors('cod_amount');
+        $this->assertSame(0, Shipment::count());
+    }
+
     public function test_cod_amount_mismatch_alerts_finance_once_instead_of_capturing(): void
     {
         $payment = Payment::create(['order_id' => $this->order->id, 'customer_id' => $this->order->customer_id, 'method' => 'cod', 'gateway' => 'cod', 'total_amount' => 10000, 'reference' => 'PAY-2026-COD-SHORT']);
@@ -205,7 +212,7 @@ class LogisticsTest extends TestCase
     public function test_awaiting_booking_lists_paid_unshipped_pairs_with_suggestions(): void
     {
         $this->getJson('/api/v1/logistics/awaiting-booking')->assertUnauthorized();
-        foreach (['Support Agent', 'Finance'] as $role) {
+        foreach (['Administrative Assistant', 'Accounting Staff'] as $role) {
             $user = User::create(['name' => $role.' test', 'email' => str_replace(' ', '.', strtolower($role)).'.awaiting@example.com', 'password' => 'password', 'is_active' => true]); $user->assignRole($role);
             $this->app['auth']->forgetGuards(); $this->withToken($user->createToken('test', ['staff'])->plainTextToken)->getJson('/api/v1/logistics/awaiting-booking')->assertForbidden();
         }
@@ -268,7 +275,7 @@ class LogisticsTest extends TestCase
         $this->assertCount(3, $digests); $this->assertStringContainsString($late->reference, $digests->first()->message);
 
         // A Support Agent sees only shipments linked to their tickets and has no overdue row on the dashboard.
-        $agent = User::create(['name' => 'Agent overdue test', 'email' => 'agent.overdue@example.com', 'password' => 'password', 'is_active' => true]); $agent->assignRole('Support Agent');
+        $agent = User::create(['name' => 'Agent overdue test', 'email' => 'agent.overdue@example.com', 'password' => 'password', 'is_active' => true]); $agent->assignRole('Administrative Assistant');
         $token = $agent->createToken('test', ['staff'])->plainTextToken;
         $this->app['auth']->forgetGuards(); $this->withToken($token)->getJson('/api/v1/logistics/shipments?overdue=1')->assertOk()->assertJsonPath('total', 0)->assertJsonPath('summary.overdue', 0);
         $this->app['auth']->forgetGuards(); $this->assertNotContains('overdue_shipments', array_column($this->withToken($token)->getJson('/api/v1/dashboard')->assertOk()->json('attention'), 'key'));
@@ -337,7 +344,7 @@ class LogisticsTest extends TestCase
 
     public function test_a_returned_cod_parcel_cancels_its_payment_a_prepaid_one_alerts_finance_and_pickup_needs_tracking(): void
     {
-        [$agent, $finance, $coordinator] = [$this->user('Support Agent'), $this->user('Finance'), $this->user('Logistics Coordinator')];
+        [$agent, $finance, $coordinator] = [$this->user('Administrative Assistant'), $this->user('Accounting Staff'), $this->user('Warehouseman')];
         $payment = Payment::create(['order_id' => $this->order->id, 'customer_id' => $this->order->customer_id, 'method' => 'cod', 'gateway' => 'cod', 'total_amount' => 10000, 'reference' => 'PAY-2026-COD-RETURN']);
         $shipment = $this->shipment(['cod_amount' => 10000]); $this->advance($shipment); $events = '/api/v1/logistics/shipments/'.$shipment->id.'/events';
         foreach ([1, 2, 3] as $attempt) { $this->staff()->postJson($events, ['status' => 'failed_attempt'])->assertOk(); if ($attempt < 3) { $this->staff()->postJson($events, ['status' => 'out_for_delivery'])->assertOk(); } }
@@ -392,7 +399,7 @@ class LogisticsTest extends TestCase
 
     public function test_courier_gap_fill_is_off_by_default_and_each_refused_event_alerts_shipment_editors_once(): void
     {
-        $agent = $this->user('Support Agent'); $shipment = $this->shipment();
+        $agent = $this->user('Administrative Assistant'); $shipment = $this->shipment();
         $this->courierEvent($shipment, 'gap-1', 'picked_up')->assertUnprocessable()->assertJsonValidationErrors('status');
         $this->courierEvent($shipment, 'gap-1', 'picked_up')->assertUnprocessable();
         $alert = Notification::where('user_id', $this->admin->id)->where('type', 'courier_event_rejected')->sole();
@@ -493,7 +500,7 @@ class LogisticsTest extends TestCase
         $this->courierEvent($shipment, 'pod-off', 'delivered', $proof)->assertUnprocessable()->assertJsonValidationErrors('proof_photo');
         $this->assertStringContainsString('courier proof of delivery', Notification::where('user_id', $this->admin->id)->where('type', 'courier_event_rejected')->sole()->message);
         $this->staff()->putJson('/api/v1/settings', ['logistics_courier_pod' => 'maybe'])->assertUnprocessable()->assertJsonValidationErrors('logistics_courier_pod');
-        $coordinator = $this->user('Logistics Coordinator')->createToken('test', ['staff'])->plainTextToken; $this->app['auth']->forgetGuards();
+        $coordinator = $this->user('Warehouseman')->createToken('test', ['staff'])->plainTextToken; $this->app['auth']->forgetGuards();
         $this->withToken($coordinator)->putJson('/api/v1/settings', ['logistics_courier_pod' => true])->assertForbidden();
         $this->staff()->putJson('/api/v1/settings', ['logistics_courier_pod' => true])->assertOk()->assertJsonPath('logistics_courier_pod', true);
         // Only an out-for-delivery parcel takes proof, and the recipient and photo come together.

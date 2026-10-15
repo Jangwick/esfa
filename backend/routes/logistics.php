@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/logistics/options', [LogisticsController::class, 'options']);
 Route::post('/logistics/quotes', [LogisticsController::class, 'quotes']);
 Route::post('/logistics/address/parse', [LogisticsController::class, 'parseAddress'])->middleware('throttle:20,1,ai-address');
+Route::post('/logistics/address/suggest', [LogisticsController::class, 'suggestAddress'])->middleware('throttle:60,1,address-suggest');
+Route::post('/logistics/address/reverse', [LogisticsController::class, 'reverseAddress'])->middleware('throttle:60,1,address-reverse');
 Route::get('/logistics/shipments', [LogisticsController::class, 'index'])->middleware('cache.api:30');
 Route::post('/logistics/shipments', [LogisticsController::class, 'store']);
 Route::get('/logistics/shipments/{shipment}', [LogisticsController::class, 'show']);
