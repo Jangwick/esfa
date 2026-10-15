@@ -7,7 +7,7 @@ use App\Support\ListResponse;
 use Illuminate\Validation\Rule;
 class LedgerController extends Controller {
     public function index(ListRequest $request){
-        $this->requirePermission('view payments');abort_if($request->user()->hasRole('Support Agent')&&!$request->user()->hasAnyRole(['Admin','Finance','Analyst']),403,'This action requires a finance or analyst role.');
+        $this->requirePermission('view payments');abort_if($request->user()->hasRole('Administrative Assistant')&&!$request->user()->hasAnyRole(['Admin','Accounting Staff','Quality Control Analyst']),403,'This action requires a finance or analyst role.');
         $request->validate(['entry_type'=>['nullable',Rule::in(LedgerService::TYPES)],'account'=>['nullable',Rule::in(LedgerService::ACCOUNTS)],'direction'=>'nullable|in:debit,credit']);$query=LedgerEntry::query();
         if($request->filled('search')){$query->whereRaw('LOWER(memo) LIKE ?',['%'.mb_strtolower($request->search).'%']);}foreach(['entry_type','account','direction'] as $field){if($request->filled($field)){$query->where($field,$request->input($field));}}
         ListResponse::sort(ListResponse::dates($query,$request),$request,['created_at','entry_type','account','total_amount']);$summary=['total'=>(clone$query)->count(),'debits'=>(int)(clone$query)->where('direction','debit')->sum('total_amount'),'credits'=>(int)(clone$query)->where('direction','credit')->sum('total_amount')];

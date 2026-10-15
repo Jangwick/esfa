@@ -41,7 +41,7 @@ class PaymentsTest extends TestCase {
         parent::setUp();$this->seed(RolePermissionSeeder::class);
         CommissionRule::create(['name'=>'Test global rule','scope'=>'global','rate_bp'=>500,'fixed_fee_amount'=>0,'effective_from'=>now()->subDay()]);
         $this->admin=User::create(['name'=>'Admin','email'=>'payments.admin@example.com','password'=>'password','is_active'=>true]);$this->admin->assignRole('Admin');$this->adminToken=$this->admin->createToken('staff',['staff'])->plainTextToken;
-        $this->finance=User::create(['name'=>'Finance','email'=>'payments.finance@example.com','password'=>'password','is_active'=>true]);$this->finance->assignRole('Finance');$this->financeToken=$this->finance->createToken('staff',['staff'])->plainTextToken;
+        $this->finance=User::create(['name'=>'Accounting Staff','email'=>'payments.finance@example.com','password'=>'password','is_active'=>true]);$this->finance->assignRole('Accounting Staff');$this->financeToken=$this->finance->createToken('staff',['staff'])->plainTextToken;
         $this->client=IntegrationClient::create(['name'=>'Orders','system_code'=>'orders','is_active'=>true]);$this->integrationToken=$this->client->createToken('orders',IntegrationClient::SCOPES)->plainTextToken;
         config(['payments.sandbox_webhook_secret'=>'test-gateway-secret']);
     }
@@ -122,8 +122,18 @@ class PaymentsTest extends TestCase {
         $this->asToken($this->adminToken)->postJson('/api/v1/refunds/'.$second.'/reject',['rejection_reason'=>'Insufficient evidence'])->assertOk()->assertJsonPath('status','rejected');
         $third=$this->asToken($this->adminToken)->postJson('/api/v1/refunds',['payment_id'=>$payment->id,'amount'=>4000,'reason'=>'other'])->assertCreated()->json('id');$this->asToken($this->adminToken)->postJson('/api/v1/refunds/'.$third.'/approve')->assertOk()->assertJsonPath('approved_by',$this->admin->id);$this->assertSame('refunded',$payment->fresh()->status);$this->balance();
     }
+    public function test_a_cod_refund_waits_for_the_cash_payout_instead_of_completing_at_once():void {
+        $payment=$this->payment(10000,'cod');$payment->update(['status'=>'captured','captured_amount'=>10000,'captured_at'=>now()]);
+        $refund=$this->asToken($this->financeToken)->postJson('/api/v1/refunds',['payment_id'=>$payment->id,'amount'=>4000,'reason'=>'damaged'])->assertCreated()->json();
+        $this->asToken($this->adminToken)->postJson('/api/v1/refunds/'.$refund['id'].'/approve')->assertOk()->assertJsonPath('status','processing');
+        $this->assertSame(0,(int)$payment->fresh()->refunded_amount);
+        $this->asToken($this->adminToken)->postJson('/api/v1/refunds/'.$refund['id'].'/cash-paid')->assertOk()->assertJsonPath('status','completed');
+        $this->assertSame('partially_refunded',$payment->fresh()->status);$this->assertSame(4000,(int)$payment->fresh()->refunded_amount);
+        $this->asToken($this->adminToken)->postJson('/api/v1/refunds/'.$refund['id'].'/cash-paid')->assertUnprocessable();
+        $this->balance();
+    }
     public function test_refund_outcomes_are_noted_on_the_linked_ticket_and_a_rejection_tells_the_requester():void {
-        $agent=User::create(['name'=>'Agent','email'=>'payments.agent@example.com','password'=>'password','is_active'=>true]);$agent->assignRole('Support Agent');
+        $agent=User::create(['name'=>'Agent','email'=>'payments.agent@example.com','password'=>'password','is_active'=>true]);$agent->assignRole('Administrative Assistant');
         $payment=$this->payment();
         $ticket=Ticket::create(['subject'=>'Refund please','description'=>'The item arrived damaged.','source_system'=>'orders','channel'=>'email','category'=>'refund_return','priority'=>'normal','requester_type'=>'customer','requester_id'=>$payment->customer_id,'order_id'=>$payment->order_id,'payment_id'=>$payment->id,'assignee_id'=>$agent->id,'first_response_due_at'=>now()->addHour(),'resolution_due_at'=>now()->addDay()]);
         $request=fn(int $amount)=>$this->asToken($this->financeToken)->postJson('/api/v1/refunds',['payment_id'=>$payment->id,'amount'=>$amount,'reason'=>'damaged','ticket_id'=>$ticket->id])->assertCreated()->json();
@@ -182,8 +192,8 @@ class PaymentsTest extends TestCase {
     }
 
     public function test_support_agents_with_custom_finance_permissions_still_obey_payment_ownership():void {
-        $agent=User::create(['name'=>'Custom Finance Agent','email'=>'payments.custom.agent@example.com','password'=>'password','is_active'=>true]);$agent->assignRole('Support Agent');
-        $other=User::create(['name'=>'Other Agent','email'=>'payments.other.agent@example.com','password'=>'password','is_active'=>true]);$other->assignRole('Support Agent');
+        $agent=User::create(['name'=>'Custom Finance Agent','email'=>'payments.custom.agent@example.com','password'=>'password','is_active'=>true]);$agent->assignRole('Administrative Assistant');
+        $other=User::create(['name'=>'Other Agent','email'=>'payments.other.agent@example.com','password'=>'password','is_active'=>true]);$other->assignRole('Administrative Assistant');
         $token=$agent->createToken('staff',['staff'])->plainTextToken;
         [$own,$unassigned,$hidden]=array_map(fn()=> $this->payment(10098),range(1,3));
         $assignees=[$agent->id,null,$other->id];
@@ -288,7 +298,7 @@ class PaymentsTest extends TestCase {
     public function test_reconciliation_import_and_resolve_need_a_finance_role_not_just_the_permission():void {
         $this->payment();$date=now()->timezone('Asia/Manila')->toDateString();$csv="date,gateway_reference,amount,fee\n{$date},unknown,1.00,0.00\n";
         $run=app(ReconciliationService::class)->import(UploadedFile::fake()->createWithContent('finance.csv',$csv),$date,$date,$this->finance);
-        $agent=User::create(['name'=>'Agent with edit payments','email'=>'payments.reconcile.agent@example.com','password'=>'password','is_active'=>true]);$agent->assignRole('Support Agent');$agent->givePermissionTo('edit payments');$token=$agent->createToken('staff',['staff'])->plainTextToken;
+        $agent=User::create(['name'=>'Agent with edit payments','email'=>'payments.reconcile.agent@example.com','password'=>'password','is_active'=>true]);$agent->assignRole('Administrative Assistant');$agent->givePermissionTo('edit payments');$token=$agent->createToken('staff',['staff'])->plainTextToken;
         $this->asToken($token)->post('/api/v1/reconciliations',['date_from'=>$date,'date_to'=>$date,'file'=>UploadedFile::fake()->createWithContent('agent.csv',$csv)],['Accept'=>'application/json'])->assertForbidden();
         $this->asToken($token)->postJson('/api/v1/reconciliation-items/'.$run->items[0]->id.'/resolve',['notes'=>'Not mine to resolve'])->assertForbidden();
         $this->assertDatabaseCount('reconciliations',1);$this->assertNull($run->items[0]->fresh()->resolved_at);

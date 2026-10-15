@@ -335,6 +335,7 @@
             "schema": {
               "type": "string",
               "enum": [
+                "all",
                 "revenue_by_day",
                 "payments_by_method",
                 "refunds_by_reason",
@@ -5420,6 +5421,94 @@
         }
       }
     },
+    "/api/v1/logistics/address/reverse": {
+      "post": {
+        "operationId": "post_logistics_address_reverse",
+        "tags": [
+          "Logistics & locations"
+        ],
+        "summary": "POST /logistics/address/reverse",
+        "description": "Post the logistics address reverse resource. All writes are validated and authorized on the server; reads include only records permitted to this identity.",
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "x-authorization": "Active staff session with the module permission and role visibility rules; Admin-only user and integration administration."
+      }
+    },
+    "/api/v1/logistics/address/suggest": {
+      "post": {
+        "operationId": "post_logistics_address_suggest",
+        "tags": [
+          "Logistics & locations"
+        ],
+        "summary": "POST /logistics/address/suggest",
+        "description": "Post the logistics address suggest resource. All writes are validated and authorized on the server; reads include only records permitted to this identity.",
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "x-authorization": "Active staff session with the module permission and role visibility rules; Admin-only user and integration administration."
+      }
+    },
     "/api/v1/logistics/awaiting-booking": {
       "get": {
         "operationId": "get_logistics_awaiting_booking",
@@ -8774,6 +8863,61 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Refund"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "x-authorization": "Active staff session with the module permission and role visibility rules; Admin-only user and integration administration."
+      }
+    },
+    "/api/v1/refunds/{refund}/cash-paid": {
+      "post": {
+        "operationId": "post_refunds_refund_cash_paid",
+        "tags": [
+          "Payments & transactions"
+        ],
+        "summary": "POST /refunds/{refund}/cash-paid",
+        "description": "Post the refunds {refund} cash paid resource. All writes are validated and authorized on the server; reads include only records permitted to this identity.",
+        "parameters": [
+          {
+            "name": "refund",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
                 }
               }
             }

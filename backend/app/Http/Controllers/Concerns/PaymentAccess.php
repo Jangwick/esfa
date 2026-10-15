@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 trait PaymentAccess {
     protected function paymentRows(Builder $query,Request $request):Builder {
         $user=$request->user();
-        if($user->hasRole('Support Agent')&&!$user->hasAnyRole(['Admin','Finance'])){
+        if($user->hasRole('Administrative Assistant')&&!$user->hasAnyRole(['Admin','Accounting Staff'])){
             $query->where(function($query)use($user){$query->whereIn('id',Ticket::where(fn($query)=>$query->whereNull('assignee_id')->orWhere('assignee_id',$user->id))->whereNotNull('payment_id')->select('payment_id'))
                 ->orWhereIn('order_id',Ticket::where(fn($query)=>$query->whereNull('assignee_id')->orWhere('assignee_id',$user->id))->whereNotNull('order_id')->select('order_id'));});
         }return $query;

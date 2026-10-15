@@ -16,7 +16,7 @@ Route::post('/payments/{payment}/cod-collected',[PaymentController::class,'cod']
 Route::get('/refunds',[RefundController::class,'index']);Route::post('/refunds',[RefundController::class,'store']);Route::get('/refunds/{refund}',[RefundController::class,'show']);
 Route::get('/refunds/{refund}/photos/{attachment}',[RefundController::class,'photo']);
 Route::get('/refunds/{refund}/ai-review',[RefundController::class,'aiReview'])->middleware('throttle:30,1,ai-review');Route::post('/refunds/{refund}/ai-review',[RefundController::class,'aiReview'])->middleware('throttle:30,1,ai-review');
-Route::post('/refunds/{refund}/approve',[RefundController::class,'approve']);Route::post('/refunds/{refund}/reject',[RefundController::class,'reject']);
+Route::post('/refunds/{refund}/approve',[RefundController::class,'approve']);Route::post('/refunds/{refund}/reject',[RefundController::class,'reject']);Route::post('/refunds/{refund}/cash-paid',[RefundController::class,'settleCash']);
 Route::get('/ledger',[LedgerController::class,'index']);
 Route::get('/reconciliations',[ReconciliationController::class,'index']);Route::post('/reconciliations',[ReconciliationController::class,'store']);Route::get('/reconciliations/{run}',[ReconciliationController::class,'show']);
 Route::post('/reconciliation-items/{item}/resolve',[ReconciliationController::class,'resolve']);

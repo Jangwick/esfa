@@ -215,7 +215,11 @@ class PaymentService
     /** Approve, refund at the gateway and settle a locked refund. $actor is null for a PAY-8 automatic approval. */
     private function approveLocked(Refund $refund,Payment $payment,?User $actor):Refund {
         $refund->update(['status'=>'approved','approved_by'=>$actor?->id,'approved_at'=>now()]);$this->emit('refund.approved',$refund);
-        $refund->update(['status'=>'processing']);$result=$this->gateway($payment->gateway)->refund($payment,$refund->amount,$refund->reason);
+        $refund->update(['status'=>'processing']);
+        // A COD payment's money is physical cash: no gateway call can move it. The refund stays processing until a
+        // teammate confirms the hand-back with settleCashRefund(), so "completed" always means the cash actually left.
+        if($payment->method==='cod'){$this->notifyPermission('approve refunds','refund_cash_awaiting','Cash refund awaiting payout',$refund->reference.' needs its cash returned to the customer.',['refund_id'=>$refund->id,'reference'=>$refund->reference]);return $refund->fresh('payment');}
+        $result=$this->gateway($payment->gateway)->refund($payment,$refund->amount,$refund->reason);
         $how=$actor?'':'approved automatically and ';
         if($result->status==='completed'){
             $refund->update(['status'=>'completed','gateway_reference'=>$result->reference,'completed_at'=>now()]);
@@ -225,6 +229,21 @@ class PaymentService
             $this->emit('refund.completed',$refund);$this->notifyRequester($refund,'refund_completed','Refund completed');$this->noteOnTicket($refund,$actor,$how.'completed');
         }else{$refund->update(['status'=>'failed','gateway_reference'=>$result->reference,'rejection_reason'=>$result->failureReason]);$this->emit('refund.failed',$refund);$this->notifyRequester($refund,'refund_failed','Refund failed');$this->noteOnTicket($refund,$actor,$how.'failed: '.($result->failureReason ?: 'the gateway declined it'));}
         return $refund->fresh('payment');
+    }
+
+    /** Cash refunds settle by hand: Finance marks the COD refund paid once the money physically reached the customer. */
+    public function settleCashRefund(Refund $refund,User $actor):Refund {
+        return DB::transaction(function()use($refund,$actor){
+            $payment=Payment::whereKey($refund->payment_id)->lockForUpdate()->firstOrFail();
+            $refund=Refund::whereKey($refund->id)->lockForUpdate()->firstOrFail();
+            $this->check($payment->method==='cod'&&$refund->status==='processing','status','Only a COD refund waiting for its cash payout can be settled.');
+            $refund->update(['status'=>'completed','completed_at'=>now()]);
+            $total=$payment->refunded_amount+$refund->amount;$payment->update(['refunded_amount'=>$total,'status'=>$total===$payment->captured_amount?'refunded':'partially_refunded']);
+            $this->ledger->post('refund',$refund->amount,'customer_funds','cash_on_delivery',['payment_id'=>$payment->id,'refund_id'=>$refund->id,'created_by'=>$actor->id],$refund->reference.' cash returned');
+            if(class_exists(CommissionService::class)){app(CommissionService::class)->refund($refund);}
+            $this->emit('refund.completed',$refund);$this->notifyRequester($refund,'refund_completed','Refund completed');$this->noteOnTicket($refund,$actor,'completed: cash returned to the customer');
+            return $refund->fresh('payment');
+        });
     }
 
     public function reject(Refund $refund,User $actor,string $reason):Refund {
