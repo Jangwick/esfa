@@ -128,7 +128,7 @@ class SchedulerTest extends TestCase
     {
         $this->seed(RolePermissionSeeder::class);
         $staff = [];
-        foreach (['admin' => ['Admin', true], 'inactive' => ['Admin', false], 'finance' => ['Finance', true]] as $key => [$role, $active]) {
+        foreach (['admin' => ['Admin', true], 'inactive' => ['Admin', false], 'finance' => ['Accounting Staff', true]] as $key => [$role, $active]) {
             $staff[$key] = User::create(['name' => $key, 'email' => $key.'.failed-job@example.com', 'password' => 'password', 'is_active' => $active]);
             $staff[$key]->assignRole($role);
         }
@@ -449,7 +449,7 @@ class SchedulerTest extends TestCase
     {
         $this->seed(RolePermissionSeeder::class);
         $staff = [];
-        foreach (['admin' => ['Admin', true], 'finance' => ['Finance', true], 'inactive' => ['Finance', false], 'agent' => ['Support Agent', true]] as $key => [$role, $active]) {
+        foreach (['admin' => ['Admin', true], 'finance' => ['Accounting Staff', true], 'inactive' => ['Accounting Staff', false], 'agent' => ['Administrative Assistant', true]] as $key => [$role, $active]) {
             $staff[$key] = User::create(['name' => $key, 'email' => $key.'.reminder@example.com', 'password' => 'password', 'is_active' => $active]);
             $staff[$key]->assignRole($role);
         }
@@ -483,7 +483,7 @@ class SchedulerTest extends TestCase
     {
         $this->seed(RolePermissionSeeder::class);
         $staff = [];
-        foreach (['admin' => ['Admin', true], 'inactive' => ['Admin', false], 'finance' => ['Finance', true]] as $key => [$role, $active]) {
+        foreach (['admin' => ['Admin', true], 'inactive' => ['Admin', false], 'finance' => ['Accounting Staff', true]] as $key => [$role, $active]) {
             $staff[$key] = User::create(['name' => $key, 'email' => $key.'.tokens@example.com', 'password' => 'password', 'is_active' => $active]);
             $staff[$key]->assignRole($role);
         }
@@ -589,7 +589,7 @@ class SchedulerTest extends TestCase
     {
         $this->seed(RolePermissionSeeder::class);
         $staff = [];
-        foreach (['requester' => 'Admin', 'one' => 'Finance', 'two' => 'Finance'] as $key => $role) {
+        foreach (['requester' => 'Admin', 'one' => 'Accounting Staff', 'two' => 'Accounting Staff'] as $key => $role) {
             $staff[$key] = User::create(['name' => $key, 'email' => $key.'.tidy@example.com', 'password' => 'password', 'is_active' => true]);
             $staff[$key]->assignRole($role);
         }

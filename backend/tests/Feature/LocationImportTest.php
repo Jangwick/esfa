@@ -129,7 +129,7 @@ CSV;
     {
         $this->app['auth']->forgetGuards();
         $this->post('/api/v1/locations/import', ['file' => UploadedFile::fake()->createWithContent('psgc.csv', self::PSGC)], ['Accept' => 'application/json'])->assertUnauthorized();
-        $coordinator = User::create(['name' => 'Logistics coordinator', 'email' => 'locations.coordinator@example.com', 'password' => 'password', 'is_active' => true]); $coordinator->assignRole('Logistics Coordinator');
+        $coordinator = User::create(['name' => 'Logistics coordinator', 'email' => 'locations.coordinator@example.com', 'password' => 'password', 'is_active' => true]); $coordinator->assignRole('Warehouseman');
         $this->upload(self::PSGC, $coordinator->createToken('test', ['staff'])->plainTextToken)->assertForbidden()->assertJsonPath('message', 'Only Admins can import the official PSGC publication.');
         $this->assertSame([0, 0, 0, 0], $this->tableCounts());
     }

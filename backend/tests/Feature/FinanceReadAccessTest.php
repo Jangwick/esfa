@@ -105,8 +105,8 @@ class FinanceReadAccessTest extends TestCase
     {
         $admin = User::create(['name' => 'Admin', 'email' => 'read-all.admin@example.com', 'password' => 'password', 'is_active' => true]);
         $admin->assignRole('Admin');
-        $finance = User::create(['name' => 'Finance', 'email' => 'read-all.finance@example.com', 'password' => 'password', 'is_active' => true]);
-        $finance->assignRole('Finance');
+        $finance = User::create(['name' => 'Accounting Staff', 'email' => 'read-all.finance@example.com', 'password' => 'password', 'is_active' => true]);
+        $finance->assignRole('Accounting Staff');
         $adminToken = $admin->createToken('staff', ['staff'])->plainTextToken;
         $financeToken = $finance->createToken('staff', ['staff'])->plainTextToken;
 

@@ -48,7 +48,7 @@ class AutomationTest extends TestCase
     {
         $this->getJson('/api/v1/automation')->assertUnauthorized();
         $this->postJson('/api/v1/automation/run')->assertUnauthorized();
-        foreach (['Finance', 'Support Agent', 'Analyst'] as $role) {
+        foreach (['Accounting Staff', 'Administrative Assistant', 'Quality Control Analyst'] as $role) {
             $this->as($role)->getJson('/api/v1/automation')->assertForbidden();
             $this->as($role)->postJson('/api/v1/automation/run')->assertForbidden();
         }

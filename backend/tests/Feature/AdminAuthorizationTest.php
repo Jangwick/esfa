@@ -143,7 +143,7 @@ class AdminAuthorizationTest extends TestCase
     public function test_admin_role_takes_precedence_over_support_and_logistics_visibility_restrictions(): void
     {
         $records = $this->records();
-        $this->admin->assignRole(['Support Agent', 'Logistics Coordinator']);
+        $this->admin->assignRole(['Administrative Assistant', 'Warehouseman']);
         $this->getJson('/api/v1/support/tickets/'.$records['ticket']->id, $this->headers())->assertOk()
             ->assertJsonPath('payment.id', $records['payment']->id)->assertJsonPath('shipment.id', $records['shipment']->id)
             ->assertJsonPath('requester.email', $records['customer']->email);

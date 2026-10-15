@@ -51,7 +51,7 @@ class BillingTest extends TestCase
         $this->admin = User::create(['name' => 'Billing admin', 'email' => 'billing.admin@example.com', 'password' => 'password', 'is_active' => true]);
         $this->admin->assignRole('Admin');
         $this->finance = User::create(['name' => 'Billing finance', 'email' => 'billing.finance@example.com', 'password' => 'password', 'is_active' => true]);
-        $this->finance->assignRole('Finance');
+        $this->finance->assignRole('Accounting Staff');
     }
 
     private function asFinance(): self
@@ -376,7 +376,7 @@ class BillingTest extends TestCase
         $reviewer = User::create(['name' => 'Settlement reviewer', 'email' => 'settlement.reviewer@example.com', 'password' => 'password', 'is_active' => true]);
         $reviewer->givePermissionTo('finalize settlements');
         $inactive = User::create(['name' => 'Inactive finance', 'email' => 'billing.inactive@example.com', 'password' => 'password', 'is_active' => false]);
-        $inactive->assignRole('Finance');
+        $inactive->assignRole('Accounting Staff');
         $this->subscribe($this->plan(10099));
         $this->assertSame([$this->admin->id, $this->finance->id, $editor->id], Notification::where('type', 'subscription_past_due')->orderBy('user_id')->pluck('user_id')->all());
         $this->paidOrder([[$this->seller(), 10000]]);
@@ -535,7 +535,7 @@ class BillingTest extends TestCase
 
         $this->postJson("/api/v1/settlements/{$b}/pay")->assertUnauthorized();
         $agent = User::create(['name' => 'Billing agent', 'email' => 'billing.agent@example.com', 'password' => 'password', 'is_active' => true]);
-        $agent->assignRole('Support Agent');
+        $agent->assignRole('Administrative Assistant');
         $this->withToken($agent->createToken('staff', ['staff'])->plainTextToken)->postJson("/api/v1/settlements/{$b}/pay")->assertForbidden();
 
         $this->asFinance()->postJson("/api/v1/settlements/{$b}/pay")->assertOk()->assertJsonPath('payouts.0.method', 'bank_transfer')->assertJsonPath('payouts.0.destination_masked', '•••• 5678');

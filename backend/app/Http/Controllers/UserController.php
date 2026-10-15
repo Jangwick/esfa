@@ -15,14 +15,17 @@ use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
-    private function requireAdmin(): void
+    // Only an Admin may grant or revoke the Admin role itself; any other change follows the users permissions.
+    private function assertAdminRoleUntouched(array $roles, User $user): void
     {
-        abort_unless(request()->user()?->hasRole('Admin'), 403, 'This action requires the Admin role.');
+        if ($user->hasRole('Admin') !== in_array('Admin', $roles, true) && ! request()->user()->hasRole('Admin')) {
+            throw ValidationException::withMessages(['roles' => ['Only an Admin can grant or remove the Admin role.']]);
+        }
     }
 
     public function index(ListRequest $request)
     {
-        $this->requireAdmin();
+        $this->requirePermission('view users');
         $query = User::with(['roles.permissions', 'permissions']);
         if ($request->filled('search')) {
             $search = mb_strtolower($request->search);
@@ -54,10 +57,11 @@ class UserController extends Controller
 
     public function store(UserRequest $request)
     {
-        $this->requireAdmin();
+        $this->requirePermission('create users');
         $user = DB::transaction(function () use ($request) {
             $values = $request->validated();
             $roles = $values['roles'];
+            $this->assertAdminRoleUntouched($roles, new User());
             unset($values['roles']);
             $user = User::create($values);
             $user->syncRoles($roles);
@@ -72,16 +76,17 @@ class UserController extends Controller
 
     public function update(UserRequest $request, User $user)
     {
-        $this->requireAdmin();
+        $this->requirePermission('edit users');
         DB::transaction(function () use ($request, $user) {
             $adminIds = User::role('Admin')->where('is_active', true)->orderBy('id')->pluck('id');
-            // Take the target and active Admin locks in one id-ordered set. A dual Admin/Support Agent can also be
+            // Take the target and active Admin locks in one id-ordered set. A dual Admin/Administrative Assistant can also be
             // locked by auto-assignment, which must use the same user-before-ticket ordering.
             User::whereIn('id', $adminIds->push($user->id)->unique())->orderBy('id')->lockForUpdate()->get();
             $user = User::whereKey($user->id)->firstOrFail();
             $values = $request->validated();
             $credentialsChanged = isset($values['password']) || (array_key_exists('otp_email', $values) && $values['otp_email'] !== $user->otp_email);
             $roles = $values['roles'] ?? $user->getRoleNames()->all();
+            $this->assertAdminRoleUntouched($roles, $user);
             $active = array_key_exists('is_active', $values) ? (bool) $values['is_active'] : $user->is_active;
             if ($user->id === $request->user()->id && ! $active) {
                 throw ValidationException::withMessages(['is_active' => ['You cannot deactivate your own account.']]);
@@ -98,7 +103,7 @@ class UserController extends Controller
                 $user->loginChallenges()->delete();
             }
             // Checked against the submitted roles: hasAnyRole could still answer from roles cached before the sync.
-            $released = $active && array_intersect(['Admin', 'Support Agent'], $roles) ? 0 : app(TicketService::class)->releaseAssignments($user);
+            $released = $active && array_intersect(['Admin', 'Administrative Assistant'], $roles) ? 0 : app(TicketService::class)->releaseAssignments($user);
             request()->attributes->set('audit.new_values', $user->fresh()->toArray() + ($released ? ['released_tickets' => $released] : []));
         });
 
@@ -107,7 +112,7 @@ class UserController extends Controller
 
     public function unlock(Request $request, User $user)
     {
-        $this->requireAdmin();
+        $this->requirePermission('edit users');
         request()->attributes->set('audit.action', 'unlocked');
         request()->attributes->set('audit.old_values', ['locked_until' => LoginLockout::where('email', $user->email)->first()?->locked_until?->toIso8601String()]);
         LoginLockout::clear($user->email);
@@ -119,7 +124,7 @@ class UserController extends Controller
 
     public function roles()
     {
-        $this->requireAdmin();
+        $this->requirePermission('view users');
 
         return response()->json(Role::with('permissions')->orderBy('id')->get()->map(fn ($role) => ['id' => $role->id, 'name' => $role->name, 'permissions' => $role->permissions->pluck('name')->sort()->values()->all()]));
     }

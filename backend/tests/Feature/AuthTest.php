@@ -131,9 +131,9 @@ class AuthTest extends TestCase
         $token = $this->login()->json('token');
         $user = User::where('email', 'admin@example.com')->first();
         $otherToken = $user->createToken('other-session', ['staff'])->plainTextToken;
-        $this->getJson('/api/v1/profile', $this->bearer($token))->assertOk()->assertJsonPath('name', 'Admin Demo');
+        $this->getJson('/api/v1/profile', $this->bearer($token))->assertOk()->assertJsonPath('name', 'Alexandra Reyes');
         $this->putJson('/api/v1/profile', ['name' => 'Updated Admin', 'email' => 'NEW.ADMIN@EXAMPLE.COM'], $this->bearer($token))->assertOk()->assertJsonPath('name', 'Updated Admin')->assertJsonPath('email', 'new.admin@example.com');
-        $this->putJson('/api/v1/profile', ['roles' => ['Finance']], $this->bearer($token))->assertUnprocessable()->assertJsonValidationErrors('roles');
+        $this->putJson('/api/v1/profile', ['roles' => ['Accounting Staff']], $this->bearer($token))->assertUnprocessable()->assertJsonValidationErrors('roles');
         $this->postJson('/api/v1/change-password', ['current_password' => 'wrong', 'password' => 'new-password', 'password_confirmation' => 'new-password'], $this->bearer($token))->assertUnprocessable()->assertJsonValidationErrors('current_password');
         $this->postJson('/api/v1/change-password', ['current_password' => 'password', 'password' => 'new-password', 'password_confirmation' => 'new-password'], $this->bearer($token))->assertOk();
         $this->assertTrue(Hash::check('new-password', $user->fresh()->password));

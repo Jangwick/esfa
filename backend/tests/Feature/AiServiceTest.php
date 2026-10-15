@@ -265,7 +265,7 @@ class AiServiceTest extends TestCase
     public function test_only_admins_change_the_ai_settings_and_values_are_checked(): void
     {
         $this->putJson('/api/v1/settings', ['ai_enabled' => true])->assertUnauthorized();
-        $this->as('Finance')->putJson('/api/v1/settings', ['ai_enabled' => true])->assertForbidden();
+        $this->as('Accounting Staff')->putJson('/api/v1/settings', ['ai_enabled' => true])->assertForbidden();
         $this->as('Admin')->putJson('/api/v1/settings', ['ai_enabled' => 'yes', 'ai_daily_token_limit' => -1])->assertUnprocessable()->assertJsonValidationErrors(['ai_enabled', 'ai_daily_token_limit']);
         $this->as('Admin')->putJson('/api/v1/settings', ['ai_enabled' => true, 'ai_ticket_triage' => true, 'ai_daily_token_limit' => 5000])->assertOk()
             ->assertJsonPath('ai_enabled', true)->assertJsonPath('ai_ticket_triage', true)->assertJsonPath('ai_reply_drafts', false)->assertJsonPath('ai_daily_token_limit', 5000);

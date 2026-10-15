@@ -9,7 +9,7 @@ class UserRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasRole('Admin') ?? false;
+        return $this->user()?->can($this->isMethod('POST') ? 'create users' : 'edit users') ?? false;
     }
 
     protected function prepareForValidation(): void

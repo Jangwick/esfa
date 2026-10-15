@@ -56,8 +56,8 @@ class SimulatorTest extends TestCase
         $this->admin = User::create(['name' => 'Admin', 'email' => 'simulator.admin@example.com', 'password' => 'password', 'is_active' => true]);
         $this->admin->assignRole('Admin');
         $this->adminToken = $this->admin->createToken('staff', ['staff'])->plainTextToken;
-        $finance = User::create(['name' => 'Finance', 'email' => 'simulator.finance@example.com', 'password' => 'password', 'is_active' => true]);
-        $finance->assignRole('Finance');
+        $finance = User::create(['name' => 'Accounting Staff', 'email' => 'simulator.finance@example.com', 'password' => 'password', 'is_active' => true]);
+        $finance->assignRole('Accounting Staff');
         $this->financeToken = $finance->createToken('staff', ['staff'])->plainTextToken;
     }
 
@@ -338,7 +338,7 @@ class SimulatorTest extends TestCase
         City::create(['code' => '0405624000', 'name' => 'City of Lucena', 'region_id' => $region->id, 'province_id' => null, 'type' => 'city']);
         $courier = Courier::where('code', 'demo-courier')->sole();
         $south = Zone::create(['name' => 'Cavite', 'province_ids' => [$cavite->id], 'city_ids' => [], 'min_days' => 2, 'max_days' => 4, 'is_active' => true]);
-        $rate = Rate::create(['courier_id' => $courier->id, 'service_type' => 'standard', 'origin_zone_id' => Zone::where('name', 'Demo NCR route')->value('id'), 'destination_zone_id' => $south->id, 'base_weight_grams' => 1000, 'base_fee_amount' => 10000, 'additional_per_500g_amount' => 1500, 'cod_fee_bp' => 100, 'max_weight_grams' => 20000, 'is_active' => true]);
+        $rate = Rate::create(['courier_id' => $courier->id, 'service_type' => 'standard', 'origin_zone_id' => Zone::where('name', 'Metro Manila local route')->value('id'), 'destination_zone_id' => $south->id, 'base_weight_grams' => 1000, 'base_fee_amount' => 10000, 'additional_per_500g_amount' => 1500, 'cod_fee_bp' => 100, 'max_weight_grams' => 20000, 'is_active' => true]);
         $this->assertSame(['0402103000' => 'City of Bacoor'] + $ncr, $cities());
         $this->assertNotEmpty($quote('1380200000', '0402103000'));
 

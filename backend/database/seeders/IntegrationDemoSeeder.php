@@ -11,12 +11,12 @@ class IntegrationDemoSeeder extends Seeder
 {
     /** One demo client per sibling system. demo-storefront owns every demo mirror record (customers, sellers, orders). */
     public const CLIENTS = [
-        'demo-storefront' => ['Demo storefront', ['customers:write', 'sellers:write', 'catalog:write', 'orders:write', 'payments:read', 'payments:write', 'refunds:write', 'quotes:read', 'shipments:read', 'shipments:write', 'tickets:read', 'tickets:write', 'kb:read', 'subscriptions:read', 'commissions:read', 'analytics:read', 'webhooks:manage']],
-        'demo-orders' => ['Demo order service', ['customers:write', 'sellers:write', 'orders:write', 'payments:read']],
-        'demo-checkout' => ['Demo checkout', ['payments:read', 'payments:write', 'quotes:read']],
-        'demo-accounts' => ['Demo accounts', ['customers:write', 'sellers:write', 'tickets:read', 'tickets:write', 'kb:read']],
-        'demo-catalog' => ['Demo catalog', ['catalog:write']],
-        'demo-finance-gl' => ['Demo finance ledger', ['payments:read', 'subscriptions:read', 'commissions:read', 'analytics:read']],
+        'demo-storefront' => ['Archon Nell storefront', ['customers:write', 'sellers:write', 'catalog:write', 'orders:write', 'payments:read', 'payments:write', 'refunds:write', 'quotes:read', 'shipments:read', 'shipments:write', 'tickets:read', 'tickets:write', 'kb:read', 'subscriptions:read', 'commissions:read', 'analytics:read', 'webhooks:manage']],
+        'demo-orders' => ['Order ingestion service', ['customers:write', 'sellers:write', 'orders:write', 'payments:read']],
+        'demo-checkout' => ['Checkout service', ['payments:read', 'payments:write', 'quotes:read']],
+        'demo-accounts' => ['Accounts service', ['customers:write', 'sellers:write', 'tickets:read', 'tickets:write', 'kb:read']],
+        'demo-catalog' => ['Catalog service', ['catalog:write']],
+        'demo-finance-gl' => ['Finance ledger (GL)', ['payments:read', 'subscriptions:read', 'commissions:read', 'analytics:read']],
     ];
 
     public function run(): void

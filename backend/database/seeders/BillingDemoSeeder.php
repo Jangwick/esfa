@@ -8,9 +8,9 @@ class BillingDemoSeeder extends Seeder
     {
         if(app()->environment('production'))return;
         foreach([
-            ['Free (Demo)','demo-free',0,0,0,['Basic seller tools'],['max_products'=>20],null],
-            ['Growth (Demo)','demo-growth',199900,1999000,14,['Advanced seller tools','Priority support'],['max_products'=>500],400],
-            ['Pro (Demo)','demo-pro',499900,4999000,14,['Unlimited seller tools','Premium support'],['max_products'=>10000],300],
+            ['Starter','demo-free',0,0,0,['Basic seller tools'],['max_products'=>20],null],
+            ['Growth','demo-growth',199900,1999000,14,['Advanced seller tools','Priority support'],['max_products'=>500],400],
+            ['Pro','demo-pro',499900,4999000,14,['Unlimited seller tools','Premium support'],['max_products'=>10000],300],
         ] as $i=>[$name,$code,$monthly,$annual,$trial,$features,$limits,$rate])Plan::firstOrCreate(['code'=>$code],['name'=>$name,'monthly_price_amount'=>$monthly,'annual_price_amount'=>$annual,'trial_days'=>$trial,'features'=>$features,'limits'=>$limits,'commission_rate_bp'=>$rate,'is_active'=>true,'sort_order'=>$i]);
         $pro=Plan::where('code','demo-pro')->first();
         if($pro)CommissionRule::firstOrCreate(['scope'=>'plan','scope_id'=>$pro->id],['rate_bp'=>250,'fixed_fee_amount'=>0,'effective_from'=>now()->subYears(5)]);

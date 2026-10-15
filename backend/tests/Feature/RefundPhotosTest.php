@@ -83,18 +83,18 @@ class RefundPhotosTest extends TestCase
     public function test_photo_routes_need_sign_in_and_payment_access(): void
     {
         $payment = $this->payment();
-        $finance = $this->user('Finance');
+        $finance = $this->user('Accounting Staff');
         $refund = app(PaymentService::class)->requestRefund($payment, ['amount' => 1000, 'reason' => 'damaged'], $finance);
         $photo = app(AttachmentService::class)->store(self::png('box.png'), $refund, $finance);
         $url = '/api/v1/refunds/'.$refund->id.'/photos/'.$photo->id;
 
         $this->getJson($url)->assertUnauthorized();
         $this->postJson('/api/v1/refunds', ['payment_id' => $payment->id, 'amount' => 1000, 'reason' => 'damaged', 'photos' => [self::png('box.png')]])->assertUnauthorized();
-        $this->as('Logistics Coordinator')->getJson($url)->assertForbidden();
-        $this->as('Analyst')->getJson($url)->assertForbidden();
-        $this->as('Logistics Coordinator')->postJson('/api/v1/refunds', ['payment_id' => $payment->id, 'amount' => 1000, 'reason' => 'damaged', 'photos' => [self::png('box.png')]])->assertForbidden();
+        $this->as('Warehouseman')->getJson($url)->assertForbidden();
+        $this->as('Quality Control Analyst')->getJson($url)->assertForbidden();
+        $this->as('Warehouseman')->postJson('/api/v1/refunds', ['payment_id' => $payment->id, 'amount' => 1000, 'reason' => 'damaged', 'photos' => [self::png('box.png')]])->assertForbidden();
         // A Support Agent sees only payments linked to their own or unassigned tickets.
-        $this->as('Support Agent')->getJson($url)->assertNotFound();
+        $this->as('Administrative Assistant')->getJson($url)->assertNotFound();
         $this->as($finance)->get($url)->assertOk();
         $this->assertSame(1, Refund::count(), 'the refused upload created nothing');
     }
@@ -103,7 +103,7 @@ class RefundPhotosTest extends TestCase
     {
         $payment = $this->payment();
         $fields = ['payment_id' => $payment->id, 'amount' => 1000, 'reason' => 'damaged'];
-        $finance = $this->as('Finance');
+        $finance = $this->as('Accounting Staff');
 
         $finance->postJson('/api/v1/refunds', [...$fields, 'photos' => array_map(fn ($n) => self::png("photo-$n.png"), range(1, 4))])
             ->assertUnprocessable()->assertJsonValidationErrors(['photos' => 'Add up to 3 photos.']);
@@ -121,7 +121,7 @@ class RefundPhotosTest extends TestCase
         $payment = $this->payment();
         $box = self::png('box.png');
         $bytes = file_get_contents($box->getRealPath());
-        $finance = $this->as('Finance');
+        $finance = $this->as('Accounting Staff');
 
         // A real form post: multipart fields arrive as strings.
         $id = $finance->post('/api/v1/refunds', ['payment_id' => (string) $payment->id, 'amount' => '2500', 'reason' => 'damaged', 'notes' => 'Box crushed.', 'photos' => [$box, self::jpeg('label.jpg')]], ['Accept' => 'application/json'])
@@ -143,7 +143,7 @@ class RefundPhotosTest extends TestCase
     {
         $payment = $this->payment();
         $other = $this->payment();
-        $finance = $this->as('Finance');
+        $finance = $this->as('Accounting Staff');
         $id = $finance->postJson('/api/v1/refunds', ['payment_id' => $payment->id, 'amount' => 1000, 'reason' => 'wrong_item'])->assertCreated()->json('id');
         $finance->getJson('/api/v1/refunds/'.$id)->assertOk()->assertJsonPath('photos', []);
         $refund = Refund::findOrFail($id);

@@ -75,8 +75,8 @@ class CoreFoundationTest extends TestCase
     {
         $token = $this->token();
         $this->postJson('/api/v1/users', [], $this->headers($token))->assertUnprocessable()->assertJsonValidationErrors(['name', 'email', 'password', 'roles']);
-        $body = ['name' => 'New Staff', 'email' => 'NEW.STAFF@EXAMPLE.COM', 'password' => 'long-password', 'password_confirmation' => 'long-password', 'roles' => ['Finance'], 'is_active' => true, 'otp_email' => 'Codes@Example.com'];
-        $created = $this->postJson('/api/v1/users', $body, $this->headers($token))->assertCreated()->assertJsonPath('email', 'new.staff@example.com')->assertJsonPath('otp_email', 'codes@example.com')->assertJsonPath('roles.0', 'Finance')->assertJsonMissingPath('password')->json();
+        $body = ['name' => 'New Staff', 'email' => 'NEW.STAFF@EXAMPLE.COM', 'password' => 'long-password', 'password_confirmation' => 'long-password', 'roles' => ['Accounting Staff'], 'is_active' => true, 'otp_email' => 'Codes@Example.com'];
+        $created = $this->postJson('/api/v1/users', $body, $this->headers($token))->assertCreated()->assertJsonPath('email', 'new.staff@example.com')->assertJsonPath('otp_email', 'codes@example.com')->assertJsonPath('roles.0', 'Accounting Staff')->assertJsonMissingPath('password')->json();
         $this->assertContains('approve refunds', $created['permissions']);
         $this->assertDatabaseHas('audit_logs', ['entity_type' => 'User', 'entity_id' => (string) $created['id'], 'action' => 'created']);
         $this->postJson('/api/v1/users', $body, $this->headers($token))->assertUnprocessable()->assertJsonValidationErrors('email');
@@ -88,14 +88,14 @@ class CoreFoundationTest extends TestCase
     public function test_lists_filter_sort_clamp_and_export_current_filters(): void
     {
         $token = $this->token();
-        $this->getJson('/api/v1/users?search=SUPPORT&role=Support%20Agent&sort=name&per_page=500', $this->headers($token))
+        $this->getJson('/api/v1/users?search=SUPPORT&role=Administrative%20Assistant&sort=name&per_page=500', $this->headers($token))
             ->assertOk()->assertJsonPath('per_page', 100)->assertJsonPath('total', 2)->assertJsonPath('summary.total', 2)->assertJsonPath('summary.active', 2)
             ->assertJsonStructure(['current_page', 'data', 'first_page_url', 'last_page', 'links', 'next_page_url', 'path', 'per_page', 'prev_page_url', 'total', 'summary']);
         $this->getJson('/api/v1/users?per_page=-5', $this->headers($token))->assertOk()->assertJsonPath('per_page', 1);
         $this->getJson('/api/v1/users?sort=password', $this->headers($token))->assertUnprocessable()->assertJsonValidationErrors('sort');
         $this->getJson('/api/v1/users?role=Missing', $this->headers($token))->assertUnprocessable()->assertJsonValidationErrors('role');
         $this->getJson('/api/v1/users?date_from=bad', $this->headers($token))->assertUnprocessable()->assertJsonValidationErrors('date_from');
-        $export = $this->get('/api/v1/users?role=Finance&export=csv', $this->headers($token))->assertOk();
+        $export = $this->get('/api/v1/users?role=Accounting%20Staff&export=csv', $this->headers($token))->assertOk();
         $content = $export->streamedContent();
         $this->assertStringContainsString('finance@example.com', $content);
         $this->assertStringNotContainsString('support.one@example.com', $content);
@@ -120,16 +120,16 @@ class CoreFoundationTest extends TestCase
         $token = $this->token();
         $admin = User::where('email', 'admin@example.com')->first();
         $this->putJson('/api/v1/users/'.$admin->id, ['is_active' => false], $this->headers($token))->assertUnprocessable()->assertJsonValidationErrors('is_active');
-        $this->putJson('/api/v1/users/'.$admin->id, ['roles' => ['Analyst']], $this->headers($token))->assertUnprocessable()->assertJsonValidationErrors('roles');
+        $this->putJson('/api/v1/users/'.$admin->id, ['roles' => ['Quality Control Analyst']], $this->headers($token))->assertUnprocessable()->assertJsonValidationErrors('roles');
     }
 
     public function test_user_updates_lock_the_target_and_admins_in_one_ordered_set(): void
     {
         $token = $this->token();
         $target = User::where('email', 'finance@example.com')->firstOrFail();
-        $target->syncRoles(['Support Agent']);
+        $target->syncRoles(['Administrative Assistant']);
         $dualRole = User::create(['name' => 'Dual role', 'email' => 'dual-role@example.com', 'password' => 'password', 'is_active' => true]);
-        $dualRole->assignRole(['Admin', 'Support Agent']);
+        $dualRole->assignRole(['Admin', 'Administrative Assistant']);
         $activeAdminIds = User::role('Admin')->where('is_active', true)->pluck('id')->all();
         $this->assertLessThan($dualRole->id, $target->id, 'The target can be earlier than a dual-role user also locked by the assignment sweep.');
         $queries = [];
@@ -146,10 +146,10 @@ class CoreFoundationTest extends TestCase
     public function test_roles_and_unlock_sign_in(): void
     {
         $token = $this->token();
-        $this->getJson('/api/v1/roles', $this->headers($token))->assertOk()->assertJsonCount(5)->assertJsonStructure([['id', 'name', 'permissions']]);
+        $this->getJson('/api/v1/roles', $this->headers($token))->assertOk()->assertJsonCount(19)->assertJsonStructure([['id', 'name', 'permissions']]);
         $user = User::where('email', 'support.one@example.com')->first();
         LoginLockout::create(['email' => $user->email, 'failed_attempts' => 6, 'locked_until' => now()->addMinutes(5), 'last_failed_at' => now()]);
-        $this->getJson('/api/v1/users?role=Support%20Agent', $this->headers($token))->assertJsonPath('summary.locked', 1);
+        $this->getJson('/api/v1/users?role=Administrative%20Assistant', $this->headers($token))->assertJsonPath('summary.locked', 1);
         // ADM-07: the "Sign-in locked" filter (an expired lock does not count).
         LoginLockout::create(['email' => 'finance@example.com', 'failed_attempts' => 6, 'locked_until' => now()->subMinute(), 'last_failed_at' => now()->subMinutes(6)]);
         $this->getJson('/api/v1/users?status=locked', $this->headers($token))->assertOk()->assertJsonStructure(['data', 'current_page', 'per_page', 'total', 'summary' => ['total', 'active', 'inactive', 'locked']])
@@ -167,7 +167,7 @@ class CoreFoundationTest extends TestCase
         $user = User::where('email', 'finance@example.com')->first();
         $this->putJson('/api/v1/users/'.$user->id, ['name' => 'Changed Name', 'password' => 'new-password', 'password_confirmation' => 'new-password'], $this->headers($token))->assertOk();
         $audit = AuditLog::where('entity_type', 'User')->latest('id')->firstOrFail();
-        $this->assertSame('Finance Demo', $audit->old_values['name']);
+        $this->assertSame('Bernadette Chua', $audit->old_values['name']);
         $this->assertSame('Changed Name', $audit->new_values['name']);
         $this->assertArrayNotHasKey('password', $audit->new_values);
         $this->assertStringNotContainsString('new-password', json_encode($audit->toArray()));
@@ -181,10 +181,10 @@ class CoreFoundationTest extends TestCase
     public function test_cached_user_list_refreshes_after_a_write_and_permission_changes(): void
     {
         $token = $this->token();
-        $this->getJson('/api/v1/users', $this->headers($token))->assertOk()->assertJsonPath('total', 6);
-        $this->postJson('/api/v1/users', ['name' => 'Seven', 'email' => 'seven@example.com', 'password' => 'password', 'password_confirmation' => 'password', 'roles' => ['Analyst']], $this->headers($token))->assertCreated();
-        $this->getJson('/api/v1/users', $this->headers($token))->assertOk()->assertJsonPath('total', 7);
-        User::where('email', 'admin@example.com')->first()->syncRoles(['Analyst']);
+        $this->getJson('/api/v1/users', $this->headers($token))->assertOk()->assertJsonPath('total', 20);
+        $this->postJson('/api/v1/users', ['name' => 'Seven', 'email' => 'seven@example.com', 'password' => 'password', 'password_confirmation' => 'password', 'roles' => ['Quality Control Analyst']], $this->headers($token))->assertCreated();
+        $this->getJson('/api/v1/users', $this->headers($token))->assertOk()->assertJsonPath('total', 21);
+        User::where('email', 'admin@example.com')->first()->syncRoles(['Quality Control Analyst']);
         $this->getJson('/api/v1/users', $this->headers($token))->assertForbidden();
         $this->assertNotNull(Cache::get('sfa.api.version'));
     }

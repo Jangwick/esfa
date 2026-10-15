@@ -36,7 +36,7 @@ class DemoSeedTest extends TestCase
     {
         $this->seedAs('local');
 
-        $this->assertSame(6, User::count());
+        $this->assertSame(20, User::count());
         $this->assertGreaterThanOrEqual(60, Order::count());
         $this->assertSame(['demo-storefront'], Order::distinct()->pluck('source_system')->all());
         $this->assertGreaterThanOrEqual(40, (int) now()->diffInDays(Order::min('placed_at'), true));
@@ -71,7 +71,7 @@ class DemoSeedTest extends TestCase
     {
         $this->seedAs('production');
 
-        $this->assertSame(5, Role::count());
+        $this->assertSame(19, Role::count());
         $this->assertSame(0, User::count());
         foreach ([Order::class, Payment::class, Ticket::class, Shipment::class, Plan::class, CommissionRule::class, IntegrationClient::class, WebhookEndpoint::class, PersonalAccessToken::class] as $model) {
             $this->assertSame(0, $model::count(), $model.' must never be seeded in production.');
