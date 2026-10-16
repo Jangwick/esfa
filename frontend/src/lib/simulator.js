@@ -36,6 +36,13 @@ export const TRIP_STATUSES = ['in_transit', 'out_for_delivery', 'failed_attempt'
 // Seeded NCR cities (PSGC codes), the same defaults as tools/partner-simulator.
 export const QUOTE_DEFAULTS = { origin_code: '1380200000', destination_code: '1380300000', weight_grams: '1200', length_cm: '20', width_cm: '15', height_cm: '10', cod: '0.00' }
 export const PARTNER_COMMAND = 'node tools/partner-simulator/server.mjs'
+// SFA_PARTNER_URL on this computer is the Node partner tool; on any other host it is SFA's built-in receiver
+// (/api/v1/simrx) on a hosted demo. An empty or unreadable URL counts as local, the default setup.
+export function isLocalPartner(url) {
+  let host
+  try { host = new URL(url).hostname } catch { return true }
+  return !host || ['localhost', '127.0.0.1', '::1', '[::1]'].includes(host) || host.endsWith('.localhost')
+}
 
 // "What happens?" guides, keyed by the feature keys of SYSTEMS (sends and reads), in plain language for people watching
 // a demo. Each is SFA's behaviour as the code and a live run show it. `before` is what must exist first; the other

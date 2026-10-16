@@ -242,6 +242,11 @@ class SimulatorController extends Controller
         });
         $gatewaySecret = config('payments.sandbox_webhook_secret') ?: null;
         $payload = array_filter(['sfa_api_url' => url('/api/v1'), 'client_code' => self::STOREFRONT, 'token' => $systems['storefront']['token'], 'webhook_secret' => $endpoint->secret, 'courier_code' => $courier?->code, 'courier_secret' => $courier?->webhook_secret, 'gateway_secret' => $gatewaySecret]);
+        // Free this request's pooler slot while the receiver answers: the self-hosted one (/api/v1/simrx) needs its own
+        // connection. The next query reconnects. PostgreSQL only (an in-memory SQLite database would be lost).
+        if (DB::getDriverName() === 'pgsql' && DB::transactionLevel() === 0) {
+            DB::disconnect();
+        }
         try {
             $online = Http::timeout(10)->acceptJson()->post($partner.'/api/setup', $payload)->successful();
         } catch (Throwable) {

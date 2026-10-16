@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Database\RetryingPostgresConnector;
 use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Http\FormRequest;
@@ -12,7 +13,11 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    public function register(): void {}
+    public function register(): void
+    {
+        // Laravel's ConnectionFactory uses a bound 'db.connector.{driver}' in place of its own connector.
+        $this->app->bind('db.connector.pgsql', RetryingPostgresConnector::class);
+    }
 
     public function boot(): void
     {
