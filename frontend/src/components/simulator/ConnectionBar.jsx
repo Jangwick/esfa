@@ -37,6 +37,8 @@ export function ConnectionBar({ connect, connection, partnerUrl }) {
       {!receiver?.online && (local
         ? <p className="text-xs text-slate-600">The storefront's webhook receiver did not answer, {retries} Start it with <code className="break-all rounded bg-slate-100 px-1">{PARTNER_COMMAND}</code> from the project folder, then press Reconnect: SFA then sends every waiting and failed webhook again at once.</p>
         : <p className="text-xs text-slate-600">SFA's built-in webhook receiver did not answer in time (a cold start can take a few seconds), {retries} Press Reconnect: SFA then sends every waiting and failed webhook again at once.</p>)}
-      {partnerUrl && <a href={partnerUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-blue hover:text-blue-900">{local ? `Open the partner app (${partnerUrl})` : 'Open the receiver page'} <i className="fa-solid fa-arrow-up-right-from-square" aria-hidden="true" /></a>}</>}
+      {partnerUrl && (local
+        ? <a href={partnerUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-blue hover:text-blue-900">{`Open the partner app (${partnerUrl})`} <i className="fa-solid fa-arrow-up-right-from-square" aria-hidden="true" /></a>
+        : <a href="#received-webhooks" className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-blue hover:text-blue-900">See received webhooks <i className="fa-solid fa-arrow-down" aria-hidden="true" /></a>)}</>}
   </section>
 }

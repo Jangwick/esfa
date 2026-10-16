@@ -10,7 +10,8 @@ class SettingsController extends Controller
 {
     private function values(): array
     {
-        return array_replace(config('sfa.settings'), Setting::all()->pluck('value', 'key')->all());
+        // simrx.* holds the hosted receiver's token, signing secrets and received payloads: never show or audit-log them.
+        return array_replace(config('sfa.settings'), Setting::where('key', 'not like', 'simrx.%')->pluck('value', 'key')->all());
     }
 
     public function index()

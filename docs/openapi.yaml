@@ -10079,7 +10079,7 @@
           "Administration"
         ],
         "summary": "GET /simrx",
-        "description": "Get the simrx resource. All writes are validated and authorized on the server; reads include only records permitted to this identity.",
+        "description": "Public address of the built-in partner receiver (404 unless the simulator is enabled): a short HTML page saying what the address is for. It shows no received events, payloads, counts or settings (staff read them with GET /simulator/simrx), and is sent with X-Robots-Tag: noindex and Cache-Control: no-store.",
         "responses": {
           "401": {
             "$ref": "#/components/responses/Unauthenticated"
@@ -10099,21 +10099,16 @@
           "200": {
             "description": "Successful response.",
             "content": {
-              "application/json": {
+              "text/html": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "type": "string",
+                  "description": "Static page naming the receiver; no stored data."
                 }
               }
             }
           }
         },
-        "security": [
-          {
-            "StaffBearer": []
-          }
-        ],
-        "x-authorization": "Active staff session with the module permission and role visibility rules; Admin-only user and integration administration."
+        "security": []
       }
     },
     "/api/v1/simrx/api/setup": {
@@ -10123,10 +10118,29 @@
           "Webhooks inbound"
         ],
         "summary": "POST /simrx/api/setup",
-        "description": "Built-in stand-in for the partner receiver on hosted demos (404 unless the simulator is enabled): stores the connection payload POSTed by the simulator connect handshake so webhooks can be signature-checked. Point SFA_PARTNER_URL at {app}/api/v1/simrx to use it instead of tools/partner-simulator.",
+        "description": "Built-in stand-in for the partner receiver on hosted demos (404 unless the simulator is enabled): stores the connection payload POSTed by the simulator connect handshake so webhooks can be signature-checked. Only this SFA can call it: X-SFA-Setup-Signature must be sha256= followed by the hex HMAC-SHA256 of the exact raw body keyed with APP_KEY, or it answers 401 before validating or storing anything. Point SFA_PARTNER_URL at {app}/api/v1/simrx to use it instead of tools/partner-simulator.",
+        "parameters": [
+          {
+            "name": "X-SFA-Setup-Signature",
+            "in": "header",
+            "required": true,
+            "description": "sha256= followed by the hex HMAC-SHA256 of the exact raw request body, keyed with the APP_KEY of this SFA. Sent by POST /simulator/connect.",
+            "schema": {
+              "type": "string",
+              "pattern": "^sha256=[a-f0-9]{64}$"
+            }
+          }
+        ],
         "responses": {
           "401": {
-            "$ref": "#/components/responses/Unauthenticated"
+            "description": "Missing or invalid X-SFA-Setup-Signature; nothing is stored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
@@ -10252,7 +10266,7 @@
           "Administration"
         ],
         "summary": "POST /simulator/connect",
-        "description": "Admin-only Integration Simulator (404 unless SFA_SIMULATOR=true). Ensures the active clients demo-storefront and demo-finance-gl (read-only, reads_all_financials on), replaces each one's token named simulator with a new one carrying the seeded scopes and expiring in 12 hours, (re)activates the demo-storefront webhook endpoint at SFA_PARTNER_URL/webhooks for every event (an existing secret is kept), and gives the first active courier a signing secret when it has none. When the receiver answers, the endpoint's deliveries waiting on a retry become due and its failed ones are queued again; the first 20 are sent right after the response. Returns the plain tokens, the courier secret and the sandbox gateway secret (SFA_SANDBOX_WEBHOOK_SECRET, null when unset) so the Admin browser can call the real integration API and sign courier and gateway webhooks; these secrets reach the browser only in simulator mode and are never written to the audit log. The storefront configuration is also pushed to the partner receiver (POST {partner_url}/api/setup, 3-second timeout, best effort); receiver.online reports whether it answered.",
+        "description": "Admin-only Integration Simulator (404 unless SFA_SIMULATOR=true). Ensures the active clients demo-storefront and demo-finance-gl (read-only, reads_all_financials on), replaces each one's token named simulator with a new one carrying the seeded scopes and expiring in 12 hours, (re)activates the demo-storefront webhook endpoint at SFA_PARTNER_URL/webhooks for every event (an existing secret is kept), and gives the first active courier a signing secret when it has none. When the receiver answers, the endpoint's deliveries waiting on a retry become due and its failed ones are queued again; the first 20 are sent right after the response. Returns the plain tokens, the courier secret and the sandbox gateway secret (SFA_SANDBOX_WEBHOOK_SECRET, null when unset) so the Admin browser can call the real integration API and sign courier and gateway webhooks; these secrets reach the browser only in simulator mode and are never written to the audit log. The storefront configuration is also pushed to the partner receiver (POST {partner_url}/api/setup, signed with X-SFA-Setup-Signature: sha256=HMAC-SHA256(exact JSON body, APP_KEY), 10-second timeout, best effort); receiver.online reports whether it answered.",
         "responses": {
           "401": {
             "$ref": "#/components/responses/Unauthenticated"
@@ -10382,7 +10396,7 @@
           "Administration"
         ],
         "summary": "GET /simulator/simrx",
-        "description": "Admin-only simulator: whether the built-in receiver has been set up and its last 30 received events.",
+        "description": "Admin-only simulator: whether the built-in receiver has been set up and its last 30 received events (newest first; each has at, event, delivery and the signed payload). The only way to read them.",
         "responses": {
           "401": {
             "$ref": "#/components/responses/Unauthenticated"

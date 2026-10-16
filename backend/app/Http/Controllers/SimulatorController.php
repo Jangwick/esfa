@@ -247,8 +247,12 @@ class SimulatorController extends Controller
         if (DB::getDriverName() === 'pgsql' && DB::transactionLevel() === 0) {
             DB::disconnect();
         }
+        // Signed with APP_KEY over the exact body sent, so the built-in receiver takes setup only from this SFA (the Node
+        // partner tool ignores the header).
+        $json = json_encode($payload);
         try {
-            $online = Http::timeout(10)->acceptJson()->post($partner.'/api/setup', $payload)->successful();
+            $online = Http::timeout(10)->acceptJson()->withHeaders(['X-SFA-Setup-Signature' => 'sha256='.hash_hmac('sha256', $json, (string) config('app.key'))])
+                ->withBody($json, 'application/json')->post($partner.'/api/setup')->successful();
         } catch (Throwable) {
             $online = false;
         }
@@ -316,9 +320,12 @@ class SimulatorController extends Controller
     // Stand-in partner receiver (unauthenticated, signature-verified): a hosted SFA can point SFA_PARTNER_URL at its
     // own /api/v1/simrx so the Connection bar and webhook demo work where tools/partner-simulator cannot run. The
     // storefront browser flow still prefers the real partner tool when SFA_PARTNER_URL is left alone.
+    // Only connect() on this same SFA may (re)configure it: X-SFA-Setup-Signature is sha256=HMAC(raw body, APP_KEY).
     public function simrxSetup(Request $request)
     {
         abort_unless(config('sfa.simulator'), 404);
+        $key = (string) config('app.key');
+        abort_unless($key !== '' && hash_equals('sha256='.hash_hmac('sha256', $request->getContent(), $key), (string) $request->header('X-SFA-Setup-Signature')), 401, 'This setup request was not signed by this SFA.');
         Setting::updateOrCreate(['key' => 'simrx.config'], ['value' => $request->validate([
             'sfa_api_url' => 'required|string|max:200', 'client_code' => 'required|string|max:50', 'token' => 'required|string|max:200',
             'webhook_secret' => 'required|string|max:120', 'courier_code' => 'nullable|string|max:50', 'courier_secret' => 'nullable|string|max:120', 'gateway_secret' => 'nullable|string|max:120',
@@ -345,6 +352,7 @@ class SimulatorController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    // The only way to read what the receiver got (payloads carry recipients' names, phones and addresses): Admin, simulator on.
     public function simrxIndex(Request $request)
     {
         $this->guard($request);
@@ -352,14 +360,15 @@ class SimulatorController extends Controller
         return response()->json(['configured' => (bool) Setting::valueFor('simrx.config'), 'events' => Setting::valueFor('simrx.events', [])]);
     }
 
-    // What "Open the partner app" links to on hosted setups: a read-only page over the stand-in receiver's ring.
+    // The public address of the receiver: says what it is and nothing it holds (no events, counts or settings).
     public function simrxPage()
     {
         abort_unless(config('sfa.simulator'), 404);
-        $configured = (bool) Setting::valueFor('simrx.config');
-        $rows = collect(Setting::valueFor('simrx.events', []))->map(fn ($e) => '<tr><td>'.e($e['at'] ?? '').'</td><td>'.e($e['event'] ?? '').'</td><td><code>'.e(mb_substr(json_encode($e['payload'] ?? ''), 0, 300)).'</code></td></tr>')->implode('');
-        $body = $configured ? ($rows ?: '<tr><td colspan="3">Connected — nothing received yet.</td></tr>') : '<tr><td colspan="3">Not connected yet. Connect on the Process Simulator page first.</td></tr>';
+        $title = e('SFA partner receiver');
+        $text = e("This address receives SFA's signed webhooks for the hosted demo; staff can see what arrived by signing in to SFA and opening Process Simulator.");
 
-        return response('<!doctype html><html><head><meta charset="utf-8"><title>SFA partner receiver</title><style>body{font-family:system-ui,sans-serif;margin:2rem;color:#1e293b}table{border-collapse:collapse;width:100%}td,th{border:1px solid #cbd5e1;padding:.4rem .6rem;font-size:.85rem;text-align:left;vertical-align:top}code{font-size:.78rem;word-break:break-all}</style></head><body><h1>Partner webhook receiver</h1><p>Stand-in receiver built into SFA for hosted demos (tools/partner-simulator is the fuller local version). Newest first.</p><table><thead><tr><th>Received</th><th>Event</th><th>Payload</th></tr></thead><tbody>'.$body.'</tbody></table></body></html>');
+        return response('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>'.$title.'</title><style>body{font-family:system-ui,sans-serif;margin:2rem auto;max-width:40rem;padding:0 1rem;color:#1e293b}</style></head><body><h1>'.$title.'</h1><p>'.$text.'</p></body></html>', 200, [
+            'Content-Type' => 'text/html; charset=UTF-8', 'X-Robots-Tag' => 'noindex', 'Cache-Control' => 'no-store',
+        ]);
     }
 }

@@ -4,10 +4,11 @@ import api from '../lib/api'
 import { apiError } from '../lib/admin'
 import { useUrlState } from '../lib/adminHooks'
 import { label } from '../lib/payments'
-import { GuideKey, HOW_IT_WORKS, SYSTEMS, SimulatorContext, clockOffset } from '../lib/simulator'
+import { GuideKey, HOW_IT_WORKS, SYSTEMS, SimulatorContext, clockOffset, isLocalPartner } from '../lib/simulator'
 import { Button, FormError, PageHeader, Tabs } from '../components/admin/AdminUI'
 import { ConnectionBar } from '../components/simulator/ConnectionBar'
 import { ReceivedEvents } from '../components/simulator/ReceivedEvents'
+import { ReceivedWebhooks } from '../components/simulator/ReceivedWebhooks'
 import { TrafficLog } from '../components/simulator/TrafficLog'
 import { Guide, GuideButton } from '../components/simulator/SimUI'
 import { CancelOrderSend, CategorySend, CsatSend, CustomerSend, OrderSend, OrderStatusSend, PaymentSend, QuoteSend, RefundSend, SellerAccountSend, StoreProfileSend, TicketReplySend, TicketSend } from '../components/simulator/StorefrontSends'
@@ -44,7 +45,7 @@ export default function Simulator() {
   // The pickers say what SFA accepts right now, so they are never served stale: staff may change a record in another tab
   // (mark a parcel ready, approve a refund) or scheduled work may move it on (expiry, auto-capture).
   const overview = useQuery({ queryKey: ['simulator'], queryFn: async () => (await api.get('/simulator')).data, staleTime: 0, refetchOnWindowFocus: true, retry: (count, error) => error.response?.status !== 404 && count < 1 })
-  const connect = useMutation({ mutationFn: async () => (await api.post('/simulator/connect')).data, onSuccess: (data) => { setConnection({ ...data, clock_offset: clockOffset(data.expires_at) }); client.invalidateQueries({ queryKey: ['simulator'] }) } })
+  const connect = useMutation({ mutationFn: async () => (await api.post('/simulator/connect')).data, onSuccess: (data) => { setConnection({ ...data, clock_offset: clockOffset(data.expires_at) }); client.invalidateQueries({ queryKey: ['simulator'] }); client.invalidateQueries({ queryKey: ['simulator-simrx'] }) } })
   // Its result shows only after a run succeeds (runScheduled.data), never beside a run in progress or a failed one.
   const runScheduled = useMutation({ mutationFn: async () => (await api.post('/simulator/run-scheduled')).data, onSuccess: () => client.invalidateQueries() })
   // Connect once when the page opens. The timer lets React's development double effect cancel its first run: two connects
@@ -74,6 +75,8 @@ export default function Simulator() {
   return <SimulatorContext.Provider value={sim}><div className="space-y-6">{header}
     <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><i className="fa-solid fa-flask mt-0.5" aria-hidden="true" /><p>Test server only. Every call here is real: it goes through SFA's integration API or its signed webhooks and creates real records in this database. The simulator is switched off in production.</p></div>
     <ConnectionBar connect={connect} connection={connection} partnerUrl={overview.data?.partner_url} />
+    {/* Hosted demos use SFA's built-in receiver, whose public page shows nothing it received; staff read it here. */}
+    {overview.data && !isLocalPartner(overview.data.partner_url) && <ReceivedWebhooks />}
     {loadError}
 
     <Tabs tabs={SYSTEMS.map((item) => ({ key: item.key, label: item.label, hint: item.hint }))} value={system.key} onChange={(key) => setUrl({ system: key, module: null })} />
