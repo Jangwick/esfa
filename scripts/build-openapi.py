@@ -307,6 +307,9 @@ controller_descriptions = {
     ('UserController', 'update'): 'Admin only. Update a staff account. Deactivating it, or removing both its Admin and Support Agent roles, returns its open tickets to the unassigned queue; the audit row records released_tickets.',
     ('SimulatorController', 'ticketRating'): 'Admin-only simulator: record the requester satisfaction score (1 to 5) and comment after the ticket is resolved or closed.',
     ('SimulatorController', 'runScheduled'): 'Admin-only simulator: run the scheduled work now (renewals and dunning, settlement generation, SLA alerts, automatic closure, webhook retries) under the same database lock.',
+    ('SimulatorController', 'simrxSetup'): 'Built-in stand-in for the partner receiver on hosted demos (404 unless the simulator is enabled): stores the connection payload POSTed by the simulator connect handshake so webhooks can be signature-checked. Point SFA_PARTNER_URL at {app}/api/v1/simrx to use it instead of tools/partner-simulator.',
+    ('SimulatorController', 'simrxWebhook'): 'Built-in stand-in for the partner receiver (404 unless the simulator is enabled): verifies X-SFA-Signature (t,v1 HMAC, five-minute tolerance) against the secret stored by POST /simrx/api/setup and keeps the last 30 events for GET /simulator/simrx. 409 when connect has not run yet.',
+    ('SimulatorController', 'simrxIndex'): 'Admin-only simulator: whether the built-in receiver has been set up and its last 30 received events.',
     ('SimulatorController', 'settlementFile'): 'Admin-only simulator: download a sample gateway settlement CSV (date, gateway_reference, amount, fee) for the period, built from the captured gateway payments (cash on delivery is left out) with one short amount (PHP 1.00 short, or half short for a capture under PHP 2.00, so it stays positive), one omitted payment and one unknown reference so every reconciliation outcome appears. A payment an earlier import already listed as missing is included again, so importing a later file for an overlapping period resolves that row automatically.',
     ('ReconciliationController', 'store'): 'Requires edit payments. Import a gateway settlement CSV and match each row to a payment (matched, amount_mismatch, missing_in_sfa), then add missing_in_report rows for payments the gateway captured in the period (never cash on delivery; subscription charges included) that the file omits. An earlier unresolved missing_in_report row whose payment this file reports with matching amounts is resolved automatically (resolved_by null, an explanatory note, and an audit row with automation reconciliation_auto_resolve); an amount mismatch never resolves one.',
     ('AiRulesController', '__invoke'): "Any signed-in staff member (no extra permission; integration tokens get 403). The rulebooks every AI feature checks, in order (refund, risk, reply, triage, address, delivery, ask): each rule's id, kind (sfa: checked by SFA's own code; ai: judged by Google Gemini), severity (required or advisory) and description with the current settings filled in, plus the failed-delivery playbook. Nothing is sent to Gemini.",
@@ -322,7 +325,7 @@ for route in ROUTES:
     controller, method_name = (action.split('@', 1) + ['__invoke'])[:2] if '@' in action else (action, '__invoke')
     integration = relative.startswith('integrations/')
     public = relative in ['health', 'openapi.yaml', 'login', 'login/otp', 'login/otp/resend']
-    inbound = relative.startswith('webhooks/')
+    inbound = relative.startswith('webhooks/') or relative.startswith('simrx/')
     cron = relative == 'cron/run'
     middleware = route.get('middleware', [])
     scopes = [value.split('CheckAbilities:', 1)[1] for value in middleware if 'CheckAbilities:' in value]

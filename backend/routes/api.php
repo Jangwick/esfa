@@ -11,6 +11,7 @@ use App\Http\Controllers\IntegrationClientController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OpenApiController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\SimulatorController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WebhookDeliveryController;
 use App\Http\Controllers\WebhookEndpointController;
@@ -76,5 +77,11 @@ Route::middleware(['auth:sanctum', 'staff', 'audit.log', 'cache.flush', 'run.sch
 });
 
 require __DIR__.'/integrations.php';
+// Built-in stand-in for the partner webhook receiver on hosted demos: SFA_PARTNER_URL can point at
+// /api/v1/simrx so the simulator connects to itself. Signature-checked; 404s when the simulator is off.
+Route::prefix('simrx')->middleware('throttle:30,1')->group(function (): void {
+    Route::post('/api/setup', [SimulatorController::class, 'simrxSetup']);
+    Route::post('/webhooks', [SimulatorController::class, 'simrxWebhook']);
+});
 require __DIR__.'/payments-webhooks.php';
 require __DIR__.'/logistics-webhooks.php';

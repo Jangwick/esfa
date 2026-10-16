@@ -10072,6 +10072,92 @@
         "x-authorization": "Active staff session with the module permission and role visibility rules; Admin-only user and integration administration."
       }
     },
+    "/api/v1/simrx/api/setup": {
+      "post": {
+        "operationId": "post_simrx_api_setup",
+        "tags": [
+          "Webhooks inbound"
+        ],
+        "summary": "POST /simrx/api/setup",
+        "description": "Built-in stand-in for the partner receiver on hosted demos (404 unless the simulator is enabled): stores the connection payload POSTed by the simulator connect handshake so webhooks can be signature-checked. Point SFA_PARTNER_URL at {app}/api/v1/simrx to use it instead of tools/partner-simulator.",
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "WebhookSignature": []
+          }
+        ]
+      }
+    },
+    "/api/v1/simrx/webhooks": {
+      "post": {
+        "operationId": "post_simrx_webhooks",
+        "tags": [
+          "Webhooks inbound"
+        ],
+        "summary": "POST /simrx/webhooks",
+        "description": "Built-in stand-in for the partner receiver (404 unless the simulator is enabled): verifies X-SFA-Signature (t,v1 HMAC, five-minute tolerance) against the secret stored by POST /simrx/api/setup and keeps the last 30 events for GET /simulator/simrx. 409 when connect has not run yet.",
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "WebhookSignature": []
+          }
+        ]
+      }
+    },
     "/api/v1/simulator": {
       "get": {
         "operationId": "get_simulator",
@@ -10209,6 +10295,50 @@
         ],
         "summary": "GET /simulator/settlement-file",
         "description": "Admin-only simulator: download a sample gateway settlement CSV (date, gateway_reference, amount, fee) for the period, built from the captured gateway payments (cash on delivery is left out) with one short amount (PHP 1.00 short, or half short for a capture under PHP 2.00, so it stays positive), one omitted payment and one unknown reference so every reconciliation outcome appears. A payment an earlier import already listed as missing is included again, so importing a later file for an overlapping period resolves that row automatically.",
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "x-authorization": "Active staff session with the module permission and role visibility rules; Admin-only user and integration administration."
+      }
+    },
+    "/api/v1/simulator/simrx": {
+      "get": {
+        "operationId": "get_simulator_simrx",
+        "tags": [
+          "Administration"
+        ],
+        "summary": "GET /simulator/simrx",
+        "description": "Admin-only simulator: whether the built-in receiver has been set up and its last 30 received events.",
         "responses": {
           "401": {
             "$ref": "#/components/responses/Unauthenticated"

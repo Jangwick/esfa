@@ -12,4 +12,5 @@ Route::prefix('simulator')->group(function (): void {
     Route::post('/tickets/{ticket}/reply', [SimulatorController::class, 'ticketReply']);
     Route::post('/tickets/{ticket}/rating', [SimulatorController::class, 'ticketRating']);
     Route::post('/run-scheduled', [SimulatorController::class, 'runScheduled'])->middleware('throttle:6,1,simulator-run');
+    Route::get('/simrx', [SimulatorController::class, 'simrxIndex']);
 });

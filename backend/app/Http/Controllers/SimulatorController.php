@@ -307,4 +307,43 @@ class SimulatorController extends Controller
 
         return response($csv, 200, ['Content-Type' => 'text/csv; charset=UTF-8', 'Content-Disposition' => 'attachment; filename="sandbox-settlement-'.$values['date_from'].'-to-'.$values['date_to'].'.csv"']);
     }
+
+    // Stand-in partner receiver (unauthenticated, signature-verified): a hosted SFA can point SFA_PARTNER_URL at its
+    // own /api/v1/simrx so the Connection bar and webhook demo work where tools/partner-simulator cannot run. The
+    // storefront browser flow still prefers the real partner tool when SFA_PARTNER_URL is left alone.
+    public function simrxSetup(Request $request)
+    {
+        abort_unless(config('sfa.simulator'), 404);
+        Setting::updateOrCreate(['key' => 'simrx.config'], ['value' => $request->validate([
+            'sfa_api_url' => 'required|string|max:200', 'client_code' => 'required|string|max:50', 'token' => 'required|string|max:200',
+            'webhook_secret' => 'required|string|max:120', 'courier_code' => 'nullable|string|max:50', 'courier_secret' => 'nullable|string|max:120', 'gateway_secret' => 'nullable|string|max:120',
+        ])]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function simrxWebhook(Request $request, WebhookService $webhooks)
+    {
+        abort_unless(config('sfa.simulator'), 404);
+        $secret = Setting::valueFor('simrx.config')['webhook_secret'] ?? null;
+        abort_unless($secret, 409, 'Connect the simulator first so the receiver has a signing secret.');
+        $signature = (string) $request->header('X-SFA-Signature');
+        preg_match('/t=(\d+),v1=([a-f0-9]+)/', $signature, $m);
+        abort_unless($m && abs(now()->timestamp - (int) $m[1]) <= 300, 401, 'Bad or stale webhook signature.');
+        $expected = $webhooks->signature((int) $m[1], $request->getContent(), $secret);
+        abort_unless(hash_equals(substr($expected, strpos($expected, 'v1=') + 3), $m[2]), 401, 'Bad webhook signature.');
+        // Ring of the last deliveries so the receiver page can show what arrived.
+        $events = Setting::valueFor('simrx.events', []);
+        array_unshift($events, ['at' => now()->toISOString(), 'event' => $request->header('X-SFA-Event'), 'delivery' => $request->header('X-SFA-Delivery'), 'payload' => $request->json()->all()]);
+        Setting::updateOrCreate(['key' => 'simrx.events'], ['value' => array_slice($events, 0, 30)]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function simrxIndex(Request $request)
+    {
+        $this->guard($request);
+
+        return response()->json(['configured' => (bool) Setting::valueFor('simrx.config'), 'events' => Setting::valueFor('simrx.events', [])]);
+    }
 }
