@@ -9,4 +9,7 @@
     exec socat TCP-LISTEN:"${PORT:-80}",fork,reuseaddr TCP:127.0.0.1:9180
 ) &
 
+# A deploy that skips migrations leaves new tables/columns missing on the live database — run them before serving.
+php /app/artisan migrate --force --no-interaction
+
 exec frankenphp run --config /etc/caddy/Caddyfile
