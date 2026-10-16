@@ -346,4 +346,15 @@ class SimulatorController extends Controller
 
         return response()->json(['configured' => (bool) Setting::valueFor('simrx.config'), 'events' => Setting::valueFor('simrx.events', [])]);
     }
+
+    // What "Open the partner app" links to on hosted setups: a read-only page over the stand-in receiver's ring.
+    public function simrxPage()
+    {
+        abort_unless(config('sfa.simulator'), 404);
+        $configured = (bool) Setting::valueFor('simrx.config');
+        $rows = collect(Setting::valueFor('simrx.events', []))->map(fn ($e) => '<tr><td>'.e($e['at'] ?? '').'</td><td>'.e($e['event'] ?? '').'</td><td><code>'.e(mb_substr(json_encode($e['payload'] ?? ''), 0, 300)).'</code></td></tr>')->implode('');
+        $body = $configured ? ($rows ?: '<tr><td colspan="3">Connected — nothing received yet.</td></tr>') : '<tr><td colspan="3">Not connected yet. Connect on the Process Simulator page first.</td></tr>';
+
+        return response('<!doctype html><html><head><meta charset="utf-8"><title>SFA partner receiver</title><style>body{font-family:system-ui,sans-serif;margin:2rem;color:#1e293b}table{border-collapse:collapse;width:100%}td,th{border:1px solid #cbd5e1;padding:.4rem .6rem;font-size:.85rem;text-align:left;vertical-align:top}code{font-size:.78rem;word-break:break-all}</style></head><body><h1>Partner webhook receiver</h1><p>Stand-in receiver built into SFA for hosted demos (tools/partner-simulator is the fuller local version). Newest first.</p><table><thead><tr><th>Received</th><th>Event</th><th>Payload</th></tr></thead><tbody>'.$body.'</tbody></table></body></html>');
+    }
 }

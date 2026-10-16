@@ -80,6 +80,7 @@ require __DIR__.'/integrations.php';
 // Built-in stand-in for the partner webhook receiver on hosted demos: SFA_PARTNER_URL can point at
 // /api/v1/simrx so the simulator connects to itself. Signature-checked; 404s when the simulator is off.
 Route::prefix('simrx')->middleware('throttle:30,1')->group(function (): void {
+    Route::get('/', [SimulatorController::class, 'simrxPage']);
     Route::post('/api/setup', [SimulatorController::class, 'simrxSetup']);
     Route::post('/webhooks', [SimulatorController::class, 'simrxWebhook']);
 });

@@ -10072,6 +10072,50 @@
         "x-authorization": "Active staff session with the module permission and role visibility rules; Admin-only user and integration administration."
       }
     },
+    "/api/v1/simrx": {
+      "get": {
+        "operationId": "get_simrx",
+        "tags": [
+          "Administration"
+        ],
+        "summary": "GET /simrx",
+        "description": "Get the simrx resource. All writes are validated and authorized on the server; reads include only records permitted to this identity.",
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "StaffBearer": []
+          }
+        ],
+        "x-authorization": "Active staff session with the module permission and role visibility rules; Admin-only user and integration administration."
+      }
+    },
     "/api/v1/simrx/api/setup": {
       "post": {
         "operationId": "post_simrx_api_setup",
