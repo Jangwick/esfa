@@ -14,6 +14,11 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(RolePermissionSeeder::class);
         foreach (config('sfa.settings') as $key => $value) { Setting::firstOrCreate(['key' => $key], ['value' => $value]); }
+        // Seed runs mean a fresh/demo build: every AI control on. Tests opt in per case; a running deployment keeps
+        // whatever Settings already hold (firstOrCreate above never rewrites them).
+        if (! app()->environment('testing')) {
+            foreach (array_merge(['ai_enabled'], array_map(fn ($feature) => 'ai_'.$feature, \App\Services\AiService::FEATURES)) as $key) { Setting::updateOrCreate(['key' => $key], ['value' => '1']); }
+        }
         if (app()->environment('production')) { return; }
         foreach ([
             ['Alexandra Reyes', 'admin@example.com', 'Admin'],
@@ -42,11 +47,7 @@ class DatabaseSeeder extends Seeder
             Notification::firstOrCreate(['user_id' => $user->id, 'type' => 'foundation_ready'], ['title' => 'Welcome to Archon Nell', 'message' => 'This is a demonstration account for Support, Finance & Administration.', 'data' => ['demo' => true]]);
         }
         // Feature tests seed only the foundation above; every other non-production environment gets the full demo dataset.
-        if (! app()->environment('testing')) {
-            // Demo builds show every AI control; tests opt in per case and production keeps the defaults above.
-            foreach (array_merge(['ai_enabled'], array_map(fn ($feature) => 'ai_'.$feature, \App\Services\AiService::FEATURES)) as $key) { Setting::updateOrCreate(['key' => $key], ['value' => '1']); }
-            $this->call(self::DEMO);
-        }
+        if (! app()->environment('testing')) { $this->call(self::DEMO); }
     }
 
     /** Domain demo seeders in dependency order (rules before captures, orders before shipments and tickets). */
